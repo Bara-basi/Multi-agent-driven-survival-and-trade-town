@@ -1,0 +1,398 @@
+{
+    "market": {
+        "description": "这里是集市, 这里是唯一的货物流入地。只有当 当前位置=集市 时，才可购买/出售。你可以低买高卖来赚取差价。cook_time单位为分钟。",
+        
+        "items": {
+            "瓶装水": {
+                "category": "consumable",
+                "avg_price": 3,
+                "cur_price": 3,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 40,
+                "unit_capacity": 1,
+                "description": "最便宜的补水来源。",
+                "consumable": {
+                    "effect": {
+                        "thirst": 20
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "电解质饮料": {
+                "category": "consumable",
+                "avg_price": 6,
+                "cur_price": 6,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 30,
+                "unit_capacity": 1,
+                "description": "补水同时小幅提神。",
+                "consumable": {
+                    "effect": {
+                        "thirst": 25,
+                        "fatigue": 5
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "咖啡": {
+                "category": "consumable",
+                "avg_price": 7,
+                "cur_price": 7,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 25,
+                "unit_capacity": 1,
+                "description": "强力提神但会口渴。",
+                "consumable": {
+                    "effect": {
+                        "thirst": -5,
+                        "fatigue": 12
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "凉茶": {
+                "category": "consumable",
+                "avg_price": 6,
+                "cur_price": 6,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 25,
+                "unit_capacity": 1,
+                "description": "温和恢复，适合长线活动。",
+                "consumable": {
+                    "effect": {
+                        "thirst": 15,
+                        "fatigue": 6
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "苹果": {
+                "category": "consumable",
+                "avg_price": 4,
+                "cur_price": 4,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 50,
+                "unit_capacity": 1,
+                "description": "性价比均衡。",
+                "consumable": {
+                    "effect": {
+                        "hunger": 12,
+                        "thirst": 6
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "面包": {
+                "category": "consumable",
+                "avg_price": 5,
+                "cur_price": 5,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 60,
+                "unit_capacity": 0.5,
+                "description": "饱腹但略微口渴。",
+                "consumable": {
+                    "effect": {
+                        "hunger": 20,
+                        "thirst": -5
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "肉干": {
+                "category": "consumable",
+                "avg_price": 9,
+                "cur_price": 9,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 30,
+                "unit_capacity": 1,
+                "description": "携带方便的高能量食物。",
+                "consumable": {
+                    "effect": {
+                        "hunger": 25,
+                        "thirst": -5
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "迷之炖菜": {
+                "category": "consumable",
+                "avg_price": 12,
+                "cur_price": 12,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 20,
+                "unit_capacity": 2,
+                "description": "快速恢复饥饿。",
+                "consumable": {
+                    "effect": {
+                        "hunger": 45,
+                        "thirst": 5
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "士力架": {
+                "category": "consumable",
+                "avg_price": 8,
+                "cur_price": 8,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 30,
+                "unit_capacity": 0.5,
+                "description": "应急提神与补能。",
+                "consumable": {
+                    "effect": {
+                        "hunger": 15,
+                        "fatigue": 6
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "鱼": {
+                "category": "ingredient",
+                "avg_price": 15,
+                "cur_price": 15,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 40,
+                "unit_capacity": 1,
+                "description": "鱼类食物原料，生食不可；烹饪后可食用。",
+                "ingredient": {
+                    "edible": false,
+                    "requires_cook": true,
+                    "cook_time": 10.0,
+                    "result_item": "烤鱼"
+                }
+            },
+            "烤鱼": {
+                "category": "consumable",
+                "avg_price": 20,
+                "cur_price": 20,
+                "sell_ratio": 0.85,
+                "daily_volatility": 0.15,
+                "quantity": 30,
+                "unit_capacity": 1,
+                "description": "营养价值较高的熟食。",
+                "consumable": {
+                    "effect": {
+                        "hunger": 45
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "便携炉": {
+                "category": "tool",
+                "avg_price": 50,
+                "cur_price": 50,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.10,
+                "quantity": 12,
+                "unit_capacity": 5,
+                "description": "可替代锅，任何地点烹饪。",
+                "tool": {
+                    "use_action": "cook",
+                    "location_limited": null,
+                    "consumes": {
+                        "燃料罐": 1
+                    },
+                    "notes": "每次烹饪消耗1个燃料罐"
+                }
+            },
+            "燃料罐": {
+                "category": "material",
+                "avg_price": 3,
+                "cur_price": 3,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.15,
+                "quantity": 60,
+                "unit_capacity": 1,
+                "description": "烹饪用燃料。",
+                "material": {
+                    "for_actions": [
+                        "cook"
+                    ],
+                    "notes": "被锅/便携炉消耗"
+                }
+            },
+            "钓鱼竿": {
+                "category": "tool",
+                "avg_price": 45,
+                "cur_price": 45,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.10,
+                "quantity": 15,
+                "unit_capacity": 5,
+                "description": "在河流处可钓鱼。",
+                "tool": {
+                    "use_action": "fish",
+                    "location_limited": "河流",
+                    "consumes": {
+                        "鱼饵": 1
+                    },
+                    "notes": "使用一次消耗1个鱼饵，有概率获得“鱼”"
+                }
+            },
+            "鱼饵": {
+                "category": "material",
+                "avg_price": 1,
+                "cur_price": 1,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.15,
+                "quantity": 300,
+                "unit_capacity": 0.2,
+                "description": "用于钓鱼的消耗品。",
+                "material": {
+                    "for_actions": [
+                        "fish"
+                    ],
+                    "notes": "与钓鱼竿一起使用，每次钓鱼消耗1个"
+                }
+            },
+            "斧头": {
+                "category": "tool",
+                "avg_price": 30,
+                "cur_price": 30,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.10,
+                "quantity": 10,
+                "unit_capacity": 5,
+                "description": "可在森林砍伐树木。",
+                "tool": {
+                    "use_action": "gather",
+                    "location_limited": "森林",
+                    "consumes": null,
+                    "notes": "未来可扩展耐久度/掉落物"
+                }
+            },
+            "篮子": {
+                "category": "tool",
+                "avg_price": 50,
+                "cur_price": 50,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.15,
+                "quantity": 80,
+                "unit_capacity": 1,
+                "description": "用于森林采集的辅助工具。",
+                "tool": {
+                    "use_action": "gather",
+                    "location_limited": "森林",
+                    "consumes": null,
+                    "notes": "可加成采集效率（由规则层实现）"
+                }
+            },
+            "猎枪": {
+                "category": "tool",
+                "avg_price": 100,
+                "cur_price": 100,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.10,
+                "quantity": 5,
+                "unit_capacity": 5,
+                "description": "用于打猎，不能伤害玩家。",
+                "tool": {
+                    "use_action": "hunt",
+                    "location_limited": "森林",
+                    "consumes": null,
+                    "notes": "只用于打猎掉落（由规则层实现）"
+                }
+            },
+            "小背包": {
+                "category": "consumable",
+                "avg_price": 60,
+                "cur_price": 60,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.10,
+                "quantity": 10,
+                "unit_capacity": 2,
+                "description": "使用后+10容量，可叠加。",
+                "equipment": {
+                    "capacity_bonus": 10,
+                    "stackable": true
+                }
+            },
+            "大背包": {
+                "category": "consumable",
+                "avg_price": 150,
+                "cur_price": 150,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.10,
+                "quantity": 6,
+                "unit_capacity": 3,
+                "description": "使用后+20容量，可叠加。",
+                "equipment": {
+                    "capacity_bonus": 20,
+                    "stackable": true
+                }
+            },
+            "银戒指": {
+                "category": "valuable",
+                "avg_price": 200,
+                "cur_price": 200,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.10,
+                "quantity": 5,
+                "unit_capacity": 1,
+                "description": "便携的价值储备。",
+                "valuable": {
+                    "trade_tag": "valuable",
+                    "notes": ""
+                }
+            },
+            "宝石": {
+                "category": "valuable",
+                "avg_price": 1200,
+                "cur_price": 1200,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.12,
+                "quantity": 3,
+                "unit_capacity": 1,
+                "description": "高价值、低体积。",
+                "valuable": {
+                    "trade_tag": "valuable",
+                    "notes": ""
+                }
+            },
+            "金条": {
+                "category": "valuable",
+                "avg_price": 5000,
+                "cur_price": 5000,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.09,
+                "quantity": 2,
+                "unit_capacity": 4,
+                "description": "高价值储备，但体积较大。",
+                "valuable": {
+                    "trade_tag": "valuable",
+                    "notes": ""
+                }
+            }
+        }
+    }
+}
