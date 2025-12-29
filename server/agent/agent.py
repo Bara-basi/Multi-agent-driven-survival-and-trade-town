@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class Agent:
-    def __init__(self, name: str, model: str = "deepseek-ai/DeepSeek-V3.2-Exp", **kwargs):
+    def __init__(self, name: str, model: str = "Qwen/Qwen3-VL-32B-Instruct", **kwargs):
         self.llm = ChatOpenAI(model=model, temperature=0)
         self.name = name
         self.parser = PydanticOutputParser(pydantic_object=ActionList)

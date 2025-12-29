@@ -1,14 +1,18 @@
 """
 动作Schema(Pydantic),统一json协议：只允许原子动作
 """
-import json,random,time
+import json
 import logging
+import random
+import time
 from dataclasses import dataclass
-from typing import List, Union,Optional,Dict,Any,Literal,Annotated
-from pydantic import BaseModel, Field,RootModel
-from .schema import Container,Item
-from .world import World
+from typing import Annotated, Any, Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel, Field, RootModel
+
 from .agent_config import TIME_RATIO
+from .schema import Container, Item, Market
+from .world import World
 logger = logging.getLogger(__name__)
 # 判别字段: type
 class Move(BaseModel):
@@ -84,25 +88,33 @@ class ActionMethod:
         world = ctx.world
         agent_id = ctx.agent_id
         world_lock = ctx.world_lock
-        # async with world_lock:
-        if action['type'] == "consume":
-            return await self.consume(action,player,world,dispatch,agent_id)
-        elif action['type'] == "cook":
-            return await self.cook(action,world,player,agent_id,dispatch)
-        elif action['type'] == "trade":
-            return await self.trade(player,action,agent_id,dispatch,world)
-        elif action['type'] == "talk":
-            return await self.talk()
-        elif action['type'] == "wait":
-            return await self.wait(dispatch,agent_id,action,player)
-        elif action['type'] == "store":
-            return await self.store(action,world,player)
-        elif action['type'] == "retrieve":
-            return await self.retrieve(action,world,player)
-        elif action['type'] == "fishing":
-            return await self.fishing(action,player,dispatch,agent_id,world)
-        else:
-            return {}
+        action_type = action.get("type")
+        try:
+            if action_type == "consume":
+                return await self.consume(action, player, world, dispatch, agent_id)
+            elif action_type == "cook":
+                return await self.cook(action, world, player, agent_id, dispatch)
+            elif action_type == "trade":
+                return await self.trade(player, action, agent_id, dispatch, world, world_lock)
+            elif action_type == "talk":
+                return await self.talk()
+            elif action_type == "wait":
+                return await self.wait(dispatch, agent_id, action, player)
+            elif action_type == "store":
+                return await self.store(action, world, player)
+            elif action_type == "retrieve":
+                return await self.retrieve(action, world, player)
+            elif action_type == "fishing":
+                return await self.fishing(action, player, dispatch, agent_id, world)
+            elif action_type == "move":
+                return await self._move(world, player, agent_id, dispatch, target=action["to"])
+            elif action_type == "sleep":
+                return {}
+            else:
+                return {"action": action_type or "unknown", "OK": False, "MSG": "未知的动作类型"}
+        except Exception:
+            logger.exception("Action execution failed: %s", action)
+            return {"action": action_type or "unknown", "OK": False, "MSG": "服务端处理动作时出现异常"}
 
     
     async def _move(self,world,player,agent_id,dispatch,target:str,inner_target:str|None=None) -> Dict[str,Any]:
@@ -123,6 +135,7 @@ class ActionMethod:
             }
         if player.accessible[target] == 1: # 1表示未知，0代表已知
             player.accessible[target] = 0
+        
         begin_time = time.time()     
         msg = await dispatch.action(agent_id=agent_id,cmd="go_to",target=inner_target,cur_location=player.cur_location)
         if not msg or not msg.get("OK"):
@@ -168,7 +181,7 @@ class ActionMethod:
             # 前端动画
             msg = await dispatch.action(agent_id=agent_id,cmd="consume",target=item,cur_location=player.cur_location)
             if not msg or not msg.get("OK"):
-                return {"action": "eat", "target": item, "OK": False, "MSG": "前端使用物品动画失败或超时"}
+                return {"action": "consume", "target": item, "OK": False, "MSG": "前端使用物品动画失败或超时"}
             effect_data:Dict[str,Any] = item_data['consumable']['effect']
             # 触发属性回复
             for attr,value in effect_data.items():
@@ -193,7 +206,7 @@ class ActionMethod:
         elif item_data.get('equipment'):
             msg = await dispatch.action(agent_id=agent_id,cmd="equip",target=item,cur_location=player.cur_location)
             if not msg or not msg.get("OK"):
-                return {"action": "equip", "OK": False, "MSG": "前端装备物品动画失败或超时"}
+                return {"action": "consume", "OK": False, "MSG": "前端装备物品动画失败或超时"}
             # 装备背包（一次性扩容），回复容量= 扩容值+背包本身占用空间     
             player.inventory.capacity += (item_data["equipment"]['capacity_bonus'])*qty
             self._decreace_qty(world,player.inventory,item,qty)
@@ -225,7 +238,24 @@ class ActionMethod:
         - 属性消耗
         """
         item = action['input']
-        tool = action.get('tool',"锅")
+        tool = action.get('tool', "锅")
+        item_meta = world.item_data.get(item) or {}
+        ingredient = item_meta.get("ingredient") or {}
+        cooked_item = ingredient.get("result_item")
+        if not cooked_item or cooked_item not in world.item_data:
+            return {
+                "action": "cook",
+                "input": item,
+                "OK": False,
+                "MSG": "烹饪结果物品未配置",
+            }
+        if not self._has_capacity(world, player.inventory, cooked_item, 1):
+            return {
+                "action": "cook",
+                "input": item,
+                "OK": False,
+                "MSG": "背包空间不足，无法烹饪",
+            }
         msg = self._ensure_item(action,world,player.inventory,item,1)
         if msg is not None:
             return msg
@@ -246,10 +276,12 @@ class ActionMethod:
 
         msg = await dispatch.action(agent_id=agent_id,cmd="cook",target=item,cur_location=player.cur_location)
         if not msg or not msg.get("OK"):
-            return {"action": "equip", "OK": False, "MSG": "前端烹饪动画失败或超时"}
+            return {"action": "cook", "OK": False, "MSG": "前端烹饪动画失败或超时"}
 
-        self._decreace_qty(world,player.inventory,item,1)
-        self._decreace_qty(world,player.inventory,"燃料罐",1)
+        if not self._decreace_qty(world, player.inventory, item, 1):
+            return {"action": "cook", "OK": False, "MSG": "食材不足"}
+        if not self._decreace_qty(world, player.inventory, "燃料罐", 1):
+            return {"action": "cook", "OK": False, "MSG": "燃料不足"}
         res = self._update_attribute(player,world.item_data[item]['ingredient']['cook_time']/60)# cook_time单位为分钟
         if not res:
             return {
@@ -258,69 +290,97 @@ class ActionMethod:
                 'OK':False,
                 'MSG':f"玩家死亡，游戏结束"
             }
-        cooked_item:str = world.item_data[item]['ingredient']['result_item']
         cooked_meta = world.item_data.get(cooked_item, {})
         cooked_desc = cooked_meta.get('description', '')
         cooked_func = cooked_meta.get('function') or {}
         if not isinstance(cooked_func, dict):
             cooked_func = {}
-        self._increase_qty(world,player.inventory, cooked_item, 1, cooked_desc, cooked_func)
+        if not self._increase_qty(world, player.inventory, cooked_item, 1, cooked_desc, cooked_func):
+            return {"action": "cook", "input": item, "OK": False, "MSG": "背包已满，无法放入成品"}
         memory = {world.get_time().strftime("%Y-%m-%d %H:%M"):f"你烹饪了{item}"}
         player.memory.append(json.dumps(memory,ensure_ascii=False))
+        effect = cooked_meta.get("consumable", {}).get("effect", {})
         return {
             'action':"cook",
             'input':item,
             'OK':True,
             'MSG':f"烹饪{item}成功,得到{cooked_item}",
             'qty':1,
-            'effect':world.item_data[item]['consumable']['effect']
+            'effect':effect
         }
 
 
     
-    async def trade(self,player,action,agent_id,dispatch,world) -> Dict[str,Any]:
-        """交易
-        """
+    async def trade(self,player,action,agent_id,dispatch,world,world_lock) -> Dict[str,Any]:
+        """交易"""
         if player.cur_location != "集市":
-            msg = await self._move(world,player,agent_id,dispatch,target="集市")
+            msg = await self._move(world,player,agent_id,dispatch,target="集市",inner_target="收银台")
             if not msg.get('OK'):
                 return msg
         mode = action['mode']
         item = action['item']
         qty = action['qty']
+        market: Market | None = world.locations.get("集市") if isinstance(world.locations, dict) else None
+        if not isinstance(market, Market):
+            return {"action": "trade", "OK": False, "MSG": "市场未初始化"}
+
         if mode == "buy":
-            if item not in world.locations['集市'].items or world.locations['集市'].items[item]['quantity'] < qty:
+            if item not in world.item_data:
                 return {
-                    'action':"trade",
-                    'mode':mode,
-                    'item':item,
-                    'OK':False,
-                    'MSG':f"集市没有或没有足够的{item}出售"
+                    "action": "trade",
+                    "mode": mode,
+                    "item": item,
+                    "OK": False,
+                    "MSG": f"{item} 未在商品列表中配置",
                 }
-            price = world.locations['集市'].items[item]['cur_price']
-            if player.money < price*qty:
+            if not self._has_capacity(world, player.inventory, item, qty):
                 return {
-                    'action':"trade",
-                    'mode':mode,
-                    'item':item,
-                    'OK':False,
-                    'MSG':f"金币不足，无法购买{qty}个{item}"
+                    "action": "trade",
+                    "mode": mode,
+                    "item": item,
+                    "OK": False,
+                    "MSG": "背包容量不足，无法购买",
                 }
-            player.money -= price*qty
-            world.locations['集市'].items[item]['quantity'] -= qty
-            # 获得物品
-            func = world.item_data[item].get('function') or {}
-            if not isinstance(func, dict):
-                func = {}
-            self._increase_qty(
-                world,
-                player.inventory,
-                item,
-                qty,
-                world.item_data[item]['description'],
-                func,
-            )
-            # 加入记忆
+            async with world_lock:
+                market_item = market.items.get(item)
+                if not market_item or market_item.get("quantity", 0) < qty:
+                    return {
+                        'action':"trade",
+                        'mode':mode,
+                        'item':item,
+                        'OK':False,
+                        'MSG':f"集市没有或没有足够的{item}出售"
+                    }
+                price = float(market_item.get("cur_price", 0))
+                cost = price * qty
+                if player.money < cost:
+                    return {
+                        'action':"trade",
+                        'mode':mode,
+                        'item':item,
+                        'OK':False,
+                        'MSG':f"金币不足，无法购买{qty}个{item}"
+                    }
+                func = world.item_data[item].get('function') or {}
+                if not isinstance(func, dict):
+                    func = {}
+                if not self._increase_qty(
+                    world,
+                    player.inventory,
+                    item,
+                    qty,
+                    world.item_data[item]['description'],
+                    func,
+                ):
+                    return {
+                        "action": "trade",
+                        "mode": mode,
+                        "item": item,
+                        "OK": False,
+                        "MSG": "背包空间不足，购买失败",
+                    }
+                player.money -= cost
+                market_item["quantity"] -= qty
             memory = {world.get_time().strftime("%Y-%m-%d %H:%M"):f"你购买了{qty}个{item}"}
             player.memory.append(json.dumps(memory,ensure_ascii=False))
             return {
@@ -328,28 +388,35 @@ class ActionMethod:
                 'mode':mode,
                 'item':item,
                 'OK':True,
-                'MSG':f"购买{qty}个{item}成功,花费{price*qty}金币",
+                'MSG':f"购买{qty}个{item}成功,花费{cost}金币",
                 'qty':qty,
-                'price':price*qty
+                'price':cost
             }
         elif mode == "sell":
             msg = self._ensure_item(action,world,player.inventory,item,qty)
             if msg is not None:
                 return msg
-            if item not in world.locations['集市'].items:
-                return {
-                    'action':"trade",
-                    'mode':mode,
-                    'item':item,
-                    'OK':False,
-                    'MSG':f"集市不收购{item}"
-                }
-            price = world.locations['集市'].items[item]['cur_price']*0.5
-            player.money += price*qty
-            # world.locations['集市'].items[item]['quantity'] += qty
-            # 减少物品
-            self._decreace_qty(world,player.inventory,item,qty)
-            # 加入记忆
+            async with world_lock:
+                market_item = market.items.get(item)
+                if market_item is None:
+                    return {
+                        'action':"trade",
+                        'mode':mode,
+                        'item':item,
+                        'OK':False,
+                        'MSG':f"集市不收购{item}"
+                    }
+                price = float(market_item.get("cur_price", 0)) * 0.5
+                if not self._decreace_qty(world,player.inventory,item,qty):
+                    return {
+                        "action": "trade",
+                        "mode": mode,
+                        "item": item,
+                        "OK": False,
+                        "MSG": "物品数量不足，出售失败",
+                    }
+                player.money += price*qty
+                market_item["quantity"] = market_item.get("quantity", 0) + qty
             memory = {world.get_time().strftime("%Y-%m-%d %H:%M"):f"你出售了{qty}个{item}"}
             player.memory.append(json.dumps(memory,ensure_ascii=False))
             return {
@@ -389,31 +456,49 @@ class ActionMethod:
         msg = self._ensure_item(action,world,container=player.inventory,item="鱼饵",qty=1)
         if msg is not None:
             return msg
-        self._decreace_qty(world,container=player.inventory,item="鱼饵",qty=1)
-        
+        if not self._has_capacity(world, player.inventory, "鱼", 1):
+            return {
+                "action": "fishing",
+                "OK": False,
+                "MSG": "背包空间不足，无法钓鱼获取战利品",
+            }
         if player.cur_location != "河流":
-            msg = await self._move(world,player,agent_id,dispatch,target="河流")
+            msg = await self._move(world,player,agent_id,dispatch,target="河流",inner_target="钓鱼点")
             if not msg.get('OK'):
                 return msg
+        # 消耗鱼饵
+        if not self._decreace_qty(world,container=player.inventory,item="鱼饵",qty=1):
+            return {"action": "fishing", "OK": False, "MSG": "鱼饵不足"}
         msg = await dispatch.action(agent_id=agent_id,cmd="fish",target="鱼",cur_location=player.cur_location)
         if not msg or not msg.get("OK"):
-            return {"action": "equip", "OK": False, "MSG": "前端钓鱼动画失败或超时"}
+            # 返还鱼饵，避免白扣
+            bait_meta = world.item_data.get("鱼饵", {})
+            self._increase_qty(
+                world,
+                player.inventory,
+                "鱼饵",
+                1,
+                bait_meta.get("description", ""),
+                bait_meta.get("function") or {},
+            )
+            return {"action": "fishing", "OK": False, "MSG": "前端钓鱼动画失败或超时"}
         if random.random() < rate:
             # 钓到鱼
-            self._increase_qty(world,player.inventory,"鱼",1,description=world.item_data['鱼']['description'])
+            if not self._increase_qty(world,player.inventory,"鱼",1,description=world.item_data['鱼']['description']):
+                return {"action": "fishing", "OK": False, "MSG": "背包已满，无法放入鱼"}
             msg = await dispatch.action(agent_id=agent_id,cmd="catch_fish",target="鱼",cur_location=player.cur_location)
             if not msg or not msg.get("OK"):
-                return {"action": "equip", "OK": False, "MSG": "前端捕鱼动画失败或超时"}
+                return {"action": "fishing", "OK": False, "MSG": "前端捕鱼动画失败或超时"}
             if not self._update_attribute(player,time_cost/60):
                 return {
-                    'action':"fish",
+                    'action':"fishing",
                     'OK':False,
                     'MSG':f"玩家钓鱼时体力耗尽，游戏结束"
                 }
             memory = {world.get_time().strftime("%Y-%m-%d %H:%M"):f"你钓到了鱼"}
             player.memory.append(json.dumps(memory,ensure_ascii=False))
             return {
-                'action':"fish",
+                'action':"fishing",
                 'OK':True,
                 'MSG':f"钓鱼成功,获得鱼",
                 'qty':1
@@ -421,13 +506,13 @@ class ActionMethod:
         else:
             msg = await dispatch.action(agent_id=agent_id,cmd="catch_nothing",target="鱼",cur_location=player.cur_location)
             if not msg or not msg.get("OK"):
-                return {"action": "equip", "OK": False, "MSG": "前端捕鱼动画失败或超时"} 
+                return {"action": "fishing", "OK": False, "MSG": "前端捕鱼动画失败或超时"} 
             # 钓不到鱼
             self._update_attribute(player,time_cost/60)
             memory = {world.get_time().strftime("%Y-%m-%d %H:%M"):f"你没钓到鱼"}
             player.memory.append(json.dumps(memory,ensure_ascii=False))
             return {
-                'action':"fish",
+                'action':"fishing",
                 'OK':True,
                 'MSG':f"你没钓到鱼",
                 'qty':0
@@ -450,9 +535,9 @@ class ActionMethod:
             return {"action": "wait", "OK": False, "MSG": "前端等待动画失败或超时"}
         if not self._update_attribute(player,action['seconds']*TIME_RATIO/3600):
             return {
-                'action':"fish",
+                'action':"wait",
                 'OK':False,
-                'MSG':f"玩家钓鱼时体力耗尽，游戏结束"
+                'MSG':f"玩家等待时体力耗尽，游戏结束"
             }
  
         return {
@@ -583,19 +668,20 @@ class ActionMethod:
         container.items[item].quantity -= qty
         if container.items[item].quantity <= 0:
             del container.items[item]
-        container.capacity += qty*world.item_data[item].get('unit_capacity',0)
+        container.capacity += qty * self._unit_capacity(world, item)
         return True
     
     def _increase_qty(self,world,container:Container,item:str,qty:int,description:str="",function:Dict[str,Any]|None = None) -> bool:
         if function is None or not isinstance(function, dict):
             function = {}
-        if container.capacity - qty*world.item_data[item].get('unit_capacity',0) < 0:
+        unit_capacity = self._unit_capacity(world, item)
+        if container.capacity - qty * unit_capacity < 0:
             return False
         if container.items.get(item) is None:
             # 初始化为 0，再统一叠加，避免重复计数
             container.items[item] = Item(name=item, quantity=0, description=description, function=function)
         container.items[item].quantity += qty
-        container.capacity -= qty*world.item_data[item].get('unit_capacity',0)
+        container.capacity -= qty * unit_capacity
         
         return True
         
@@ -615,4 +701,15 @@ class ActionMethod:
                 'OK':False,
                 'MSG':f"你没有足够的{item}"
             }
+        return None
+
+    def _unit_capacity(self, world: World, item: str) -> float:
+        return float(world.item_data.get(item, {}).get("unit_capacity", 0) or 0)
+
+    def _has_capacity(self, world: World, container: Container, item: str, qty: int) -> bool:
+        unit_cap = self._unit_capacity(world, item)
+        return container.capacity - unit_cap * qty >= 0
       
+    def sleep(self,player,action,world,dispatch,agent_id) :
+        """睡觉"""
+        pass

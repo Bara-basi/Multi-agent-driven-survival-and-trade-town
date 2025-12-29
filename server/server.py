@@ -109,7 +109,7 @@ class AgentServer:
         cmd: str,
         target: str = "",
         cur_location = "",
-        time_cost = 0,
+        value:float  = 0,
         timeout: float = 25.0,
     ) -> Optional[dict]:
         """
@@ -130,7 +130,7 @@ class AgentServer:
             "action_id": action_id,
             "cmd": cmd,
             "target": target,
-            "time_cost": time_cost,
+            "value": value,
         }
 
         fut = asyncio.get_running_loop().create_future()
@@ -155,27 +155,17 @@ class AgentServer:
 
 
 
-# async def main():
-#     server = AgentServer()
-#     await server.start()
-#     while not all(server.is_connected(k) for k in ["agent-1","agent-2","agent-3","agent-4"]):
-#         await asyncio.sleep(0.5)
-#     print("All agents connected:",server.connected_ids())
-#     await server.send_action("agent-1","go_to",target="锅",cur_location="河流")
-#     await server.send_action("agent-1","waiting",time_cost = 5)
-#     await server.send_action("agent-1","go_to",target="集市",cur_location="家")
-#     await server.send_action("agent-2","go_to",target="锅",cur_location="河流")
-#     await server.send_action("agent-2","waiting",time_cost = 5)
-#     await server.send_action("agent-2","go_to",target="采集点",cur_location="家")
-#     await server.send_action("agent-3","go_to",target="锅",cur_location="河流")
-#     await server.send_action("agent-3","waiting",time_cost = 5)
-#     await server.send_action("agent-3","go_to",target="钓鱼点",cur_location="家")
-#     await server.send_action("agent-4","go_to",target="锅",cur_location="河流")
-#     await server.send_action("agent-4","waiting",time_cost = 5)
-#     await server.send_action("agent-4","go_to",target="收银台",cur_location="家")
-
-#     await asyncio.sleep(1)
+async def main():
+    server = AgentServer()
+    await server.start()
+    while not all(server.is_connected(k) for k in ["agent-1","agent-2","agent-3","agent-4"]):
+        await asyncio.sleep(0.5)
+    print("All agents connected:",server.connected_ids())
+    await server.send_action("agent-1","go_to",target="收银台",cur_location="家")
+    await server.send_action("agent-1","waiting",value = 5)
+    await server.send_action("agent-1","go_to",target="钓鱼点",cur_location="集市")
+    await asyncio.sleep(1)
         
-# if __name__ == '__main__':
-#     asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())
     

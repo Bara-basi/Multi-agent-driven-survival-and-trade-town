@@ -10,37 +10,15 @@ from .world import World
 
 loop = 0
 async def format_prompt(player:Player,action_history:list,world:World) -> Dict[str,Any]:
+    def _dump_model(value: Any) -> Dict[str, Any]:
+        if value is None:
+            return {}
+        return value.model_dump() if hasattr(value, "model_dump") else {}
+
     inner_home_facilities = world.players_home[player.id].inner_facilities
 
     prompts ={
         "system_rules": "你收邀参加了一个贸易游戏，你被带到一个封闭的小镇，小镇中只有一个集市、一片森林、一条小河和几个玩家的住所。目标：在不死亡的前提下尽快赚到 ¥10,000。只准输出 JSON（单个动作或动作数组），不得包含任何其他文字。不得输出解释或中间计算过程。",
-        "hard_rules": [
-            "你不需要给出走向任何地点的指令,例如，当你给出{'type':'sleep', 'minutes':30}时，你会自动回家并走到床前执行动作,但注意地点之间的移动会消耗属性值，反复出入不同地点会浪费更多属性值",
-            "购买/出售动作必须满足下列机读约束，否则禁止输出该动作：地点与路途.集市['物品']['quantity'] >=0（若无该物品或剩余为 0，则禁止购买,强行输出对应操作会操作失败且受到饥饿值惩罚）；角色卡['资金']>=cur_price * 购买数量",
-            "生存优先：任一属性（饥饿/疲劳/水分）TTL 低时，优先补给或休息。",
-            "合并与去重：同一响应中不得重复输出多条对同一物品的购买；需要多份请用单条动作并设置合适的 数量。",
-            "多步上限：为提高交互效率，可一次输出多步，但最多 5 条动作，并确保每一步都满足 hard_rules 游戏规则。"
-        ],
-        "decision_strategy": [
-            "先检查生存（TTL）；若安全，再选择收益/分钟更高的行动（购买-制作-出售、钓鱼、倒卖等）。",
-            "任何涉及市场的动作都必须基于当前输入中的表格数值与 last_result 进行机读校验与裁剪。",
-            "若目标物品quantity为 0 (比如'纸')，立即放弃该物品，转为备选方案（同标签替代品/其它赚钱方式/等待价格刷新/移动去做别事）。"
-        ],
-        "input_spec": {
-            "description": "下列内容均为实时输入，供决策：角色卡 / 记忆 / 生存属性 / 资产与设施 / 地点与路途 / 集市表（含：剩余数量(quantity)、当前价(cur_price)、单个占用背包的空间(unit_capacity)等）与上回合结构化结果 last_result（如无则传空数组）。",
-        },
-        "actions_allowed": [
-            '{ "type":"consume", "item":"风干肉","qty":1 }（吃/喝/读/大小背包/使用任何消耗品都是此动作'
-            '{ "type":"cook", "input":"鱼", "tool":"锅" }（烹饪）',
-            '{ "type":"sleep", "minutes": 30 }（睡眠）',
-            '{ "type":"trade", "mode":"buy", "item":"面包", "qty":2 }（购买）',
-            '{ "type":"trade", "mode":"sell", "item":"书", "qty":1 }（出售）'
-            '{ "type":"talk", "to":"玩家1", "content":"你好" }（对话）',
-            '{ "type":"wait", "seconds": 10 }（原地等待，按照现实时间,现实时间一分钟等于游戏2小时）',
-            '{ "type":"store", "item":"鱼", "qty":1, "container":"冰箱" }（存物品）',
-            '{ "type":"retrieve", "item":"鱼", "qty":1, "container":"冰箱" }（取物品）',
-            '{ "type":"fishing"}（钓鱼）'
-        ],
         "output_requirements": [
             "只输出 JSON（对象或对象数组），不含任何额外文字。",
             "同一响应最多 5 条动作，且不得对同一物品重复多条购买。"
@@ -71,20 +49,20 @@ async def format_prompt(player:Player,action_history:list,world:World) -> Dict[s
             },
             "资产与设施": {
                 "家": {
-                    "冰箱": inner_home_facilities.get("冰箱",{}).model_dump(),
-                    "床": inner_home_facilities.get("床",{}).model_dump(),
-                    "锅": inner_home_facilities.get("锅",{}).model_dump(),
-                    "储物柜": inner_home_facilities.get("储物柜",{}).model_dump(),
+                    "冰箱": _dump_model(inner_home_facilities.get("冰箱")),
+                    "床": _dump_model(inner_home_facilities.get("床")),
+                    "锅": _dump_model(inner_home_facilities.get("锅")),
+                    "储物柜": _dump_model(inner_home_facilities.get("储物柜")),
                 },
                 "背包": player.inventory.model_dump(),
-                "地点与路途":{location_name:(location if isinstance(location,str) else location.model_dump()) for location_name,location in world.get_snapshot(player.id).items()},
+                "地点与路途":{location_name:(location if isinstance(location,str) else _dump_model(location)) for location_name,location in world.get_snapshot(player.id).items()},
                 "记忆": player.memory,
             }
         },
         "action_history":action_history,
         "warnings":["请勿输出任何与游戏规则无关的文字，否则将受到警告惩罚。","商店quanitity=0时无法购买物品","你的资金不够时不可以购买物品"],     
     }
-    with open(f"server/debug_log/prompt{datetime.now().strftime('%Y%m%d%H%M%S')}.json","w",encoding="utf-8") as f:
+    with open(f"debug_log/prompt{datetime.now().strftime('%Y%m%d%H%M%S')}.json","w",encoding="utf-8") as f:
         f.write(json.dumps(prompts,ensure_ascii=False))
     return prompts
     # return json.dumps(prompts,ensure_ascii=False)

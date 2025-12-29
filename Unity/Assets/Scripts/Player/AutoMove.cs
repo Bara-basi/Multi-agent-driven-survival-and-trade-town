@@ -268,6 +268,8 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         pathCells.Clear();
         pathIndex = 0;
         autoMove = Vector2.zero;
+        currentCallback?.Invoke();
+        currentCallback = null;
     }
 
     void NextStep()

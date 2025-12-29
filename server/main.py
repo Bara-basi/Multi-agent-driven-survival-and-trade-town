@@ -14,14 +14,22 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
 
 async def observe_snapshot(ctx:AgentRuntimeCtx) -> Dict[str,Any]:
-    obs = await format_prompt(player=ctx.player,action_history=ctx.actions_history,world=ctx.world)
-    return obs
+    try:
+        obs = await format_prompt(player=ctx.player,action_history=ctx.actions_history,world=ctx.world)
+        return obs
+    except Exception:
+        logger.exception("format_prompt failed for %s", ctx.agent_id)
+        return {}
 
 async def plan_by_llm(ctx:AgentRuntimeCtx,obs:Dict[str,Any]) -> List[Dict[str,Any]]:
     prompts = json.dumps(obs,ensure_ascii=False)
     # Run blocking LLM call off the event loop to preserve concurrency
-    actions = await asyncio.to_thread(ctx.player.agent.act, prompts)
-    return actions
+    try:
+        actions = await asyncio.to_thread(ctx.player.agent.act, prompts)
+        return actions
+    except Exception:
+        logger.exception("LLM planning failed for %s", ctx.agent_id)
+        return [{"type": "wait", "seconds": 1}]
     
     
 async def action_with_ws(ctx:AgentRuntimeCtx,action:Dict[str,Any]):
@@ -36,6 +44,9 @@ async def main():
     # 初始化玩家
     players:List[Player] = [Player.from_raw(id=id+1,raw=raw,player_num=len(PLAYER_INFO)) for id,raw in enumerate(PLAYER_INFO.values())]
     
+   
+
+
     # 初始化世界
     world = World(players=players)
     world_lock = asyncio.Lock()

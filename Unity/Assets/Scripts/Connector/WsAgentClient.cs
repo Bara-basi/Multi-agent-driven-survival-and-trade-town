@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.WebSockets;
@@ -74,21 +73,25 @@ public class WsAgentClient : MonoBehaviour
      async void Start()
     {
         await ConnectAndRun();
-        //StartCoroutine(test_call());
+        // StartCoroutine(test_call());
 
     }
-    //private IEnumerator test_call()
-    //{
-        //while (true)
-        //{
-        //    string json = "{\"type\":\"command\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"update_state\",\"target\":\"item\",\"value\":\"10\"}";
-        //    //string json1 = "{\"type\":\"command\",\"cur_location\":\"集市\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"go_to\",\"target\":\"家\",\"time_cost\":\"0\"}";
-        //    HandleMessage(json);
-        //    //HandleMessage(json1);
-        //    yield return new WaitForSeconds(3);
+    private IEnumerator<UnityEngine.WaitForSeconds> test_call()
+    {
+        while (true)
+        {
+           string json = "{\"type\":\"command\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"update_state\",\"target\":\"item\",\"value\":\"10\"}";
+           string json1 = "{\"type\":\"command\",\"cur_location\":\"家\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"go_to\",\"target\":\"收银台\",\"value\":\"0\"}";
+           string json2 = "{\"type\":\"command\",\"cur_location\":\"集市\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"go_to\",\"target\":\"\",\"value\":\"0\"}";
+           if(agentId == "agent-1")
+            {
+                HandleMessage(json1);
+                HandleMessage(json2);
+            }
+           yield return new WaitForSeconds(3);
 
-        //}
-    //}
+        }
+    }
 
     async Task ConnectAndRun()
     {
@@ -225,7 +228,7 @@ public class WsAgentClient : MonoBehaviour
                 cmd = msg.cmd,
                 agent_id = agentId,
                 action_id = msg.action_id,
-                status = "un_set"
+                status = "ok"
             });
         }
     }

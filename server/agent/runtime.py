@@ -16,7 +16,7 @@ class WsDispatcher(ActionDispatcher):
         self.server = server_module
 
     async def action(self,agent_id:str,cmd:str,target:str,cur_location:str,timeout:float = 25.0) -> Dict[str,Any]:
-        # 使用关键字参数，避免 timeout 被误作为 time_cost 传递
+    
         msg = await self.server.send_action(
             agent_id=agent_id,
             cmd=cmd,
@@ -53,14 +53,27 @@ async def agent_loop(ctx:AgentRuntimeCtx,stop_event:asyncio.Event,tick_sleep:flo
     today = ctx.world.get_time().day
     try:
         while not stop_event.is_set():
-            obs = await ctx.observe_fn(ctx)
+            try:
+                obs = await ctx.observe_fn(ctx)
+            except Exception:
+                logger.exception("observe step failed for %s", ctx.agent_id)
+                await asyncio.sleep(tick_sleep)
+                continue
 
-            plan_actions = await ctx.Plan_fn(ctx,obs)
+            try:
+                plan_actions = await ctx.Plan_fn(ctx,obs)
+            except Exception:
+                logger.exception("plan step failed for %s", ctx.agent_id)
+                plan_actions = [{"type": "wait", "seconds": 1}]
             if isinstance(plan_actions,dict):
                 plan_actions = [plan_actions]
 
             for action in plan_actions or []:
-                res = await ctx.act_fn(ctx,action)
+                try:
+                    res = await ctx.act_fn(ctx,action)
+                except Exception:
+                    logger.exception("action step failed for %s", ctx.agent_id)
+                    res = {"OK": False, "MSG": "action 执行异常"}
                 ctx.last_result = res
                 ctx.actions_history.append(action)
                 if not res.get("OK",False):
@@ -73,7 +86,8 @@ async def agent_loop(ctx:AgentRuntimeCtx,stop_event:asyncio.Event,tick_sleep:flo
             day = ctx.world.get_time().day
             if today!= day:
                 today = day
-                ctx.world.update_market(ctx.world.locations['集市'])
+                async with ctx.world_lock:
+                    ctx.world.update_market(ctx.world.locations['集市'])
             await asyncio.sleep(tick_sleep)
     except asyncio.CancelledError:
         logger.error(f"Agent {ctx.agent_id} 取消")
