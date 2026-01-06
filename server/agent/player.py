@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List,Dict,Any
-from .schema import Container,Attribute
+from .models.schema import Attribute, Container
 from .agent_config import INVENTORY_SIZE,DECAY_PER_HOUR
 from .utils import to_attr
 from .agent import Agent
@@ -13,6 +13,7 @@ class Player:
     """玩家状态（运行期业务对象）"""
     id: int
     agent:Agent
+    
     identity: str = ""
     info: str = ""
     skill: str = ""

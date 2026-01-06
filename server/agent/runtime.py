@@ -29,9 +29,12 @@ class WsDispatcher(ActionDispatcher):
             return {"OK": True, "MSG": "ok", "type": "complete"}
         return {"OK": False, "MSG": "failed or timeout", "type": "complete"}
 
-ObserveFn = Callable[['AgentRuntimeCtx'], Awaitable[Dict[str, Any]]]
-PlanFn    = Callable[['AgentRuntimeCtx', Dict[str, Any]], Awaitable[List[Dict[str, Any]]]]
-ActFn     = Callable[['AgentRuntimeCtx', Dict[str, Any]], Awaitable[Dict[str, Any]]]
+# ObserveFn = Callable[['AgentRuntimeCtx'], Awaitable[Dict[str, Any]]]
+PlanFn    = Callable[['AgentRuntimeCtx', str], Awaitable[str]]
+SummaryFn    = Callable[['AgentRuntimeCtx', str], Awaitable[str]]
+ActFn    = Callable[['AgentRuntimeCtx', str], Awaitable[List[Dict[str, Any]]]]
+LinkFn     = Callable[['AgentRuntimeCtx', Dict[str, Any]], Awaitable[Dict[str, Any]]]
+
 
 @dataclass
 class AgentRuntimeCtx:
@@ -42,46 +45,50 @@ class AgentRuntimeCtx:
     world_lock:asyncio.Lock
     dispatch:ActionDispatcher
     actions_history:List[Dict[str,Any]] 
-    last_result:Optional[Dict[str,Any]]
+  
 
-    observe_fn:ObserveFn
-    Plan_fn:PlanFn
-    act_fn:ActFn
+    # observe_fn:ObserveFn
+    plan:PlanFn
+    act:ActFn
+    summary:SummaryFn
+    link:LinkFn
 
 async def agent_loop(ctx:AgentRuntimeCtx,stop_event:asyncio.Event,tick_sleep:float=0.1):
     """Agent 主循环"""
     today = ctx.world.get_time().day
+    summary = None
+    plan = None
+    max_step = 20
     try:
         while not stop_event.is_set():
             try:
-                obs = await ctx.observe_fn(ctx)
+                plan = await ctx.plan(ctx,summary)
             except Exception:
-                logger.exception("observe step failed for %s", ctx.agent_id)
-                await asyncio.sleep(tick_sleep)
-                continue
-
-            try:
-                plan_actions = await ctx.Plan_fn(ctx,obs)
-            except Exception:
-                logger.exception("plan step failed for %s", ctx.agent_id)
-                plan_actions = [{"type": "wait", "seconds": 1}]
-            if isinstance(plan_actions,dict):
-                plan_actions = [plan_actions]
-
-            for action in plan_actions or []:
-                try:
-                    res = await ctx.act_fn(ctx,action)
-                except Exception:
-                    logger.exception("action step failed for %s", ctx.agent_id)
-                    res = {"OK": False, "MSG": "action 执行异常"}
-                ctx.last_result = res
-                ctx.actions_history.append(action)
-                if not res.get("OK",False):
-                    if res.get("MSG","") == "玩家死亡，游戏结束":
-                        logger.info(f"Agent {ctx.agent_id} 死亡")
-                        stop_event.set()
-                    await asyncio.sleep(0.5)
-                    break
+                logger.exception("大模型计划出错: %s", ctx.agent_id)
+            step = 0
+            while step < max_step:      
+                actions = await ctx.act(ctx,plan)
+                for action in actions or []:
+                    if action.get("type") == "finish":
+                        break
+                    try:
+                        res = await ctx.link(ctx,action)
+                    except Exception:
+                        logger.exception("action step failed for %s", ctx.agent_id)
+                        res = {"OK": False, "MSG": "action 执行异常"}
+                    ctx.last_result = res
+                    ctx.actions_history.append(action)
+                    if not res.get("OK",False):
+                        if res.get("MSG","") == "玩家死亡，游戏结束":
+                            logger.info(f"Agent {ctx.agent_id} 死亡")
+                            stop_event.set()
+                        await asyncio.sleep(0.5)
+                        break
+                step += 1
+            if step >= max_step:
+                logger.error(f"Agent {ctx.agent_id} 达到最大步骤数 {max_step}，结束本轮行动")
+            summary = await ctx.summary(ctx,plan)
+                
             # 如果时间到了第二天，刷新商店库存
             day = ctx.world.get_time().day
             if today!= day:

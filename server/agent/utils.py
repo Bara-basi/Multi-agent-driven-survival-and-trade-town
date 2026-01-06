@@ -1,7 +1,7 @@
 """
 字符串解析与通用工具
 """
-from .schema import Item,Location,Attribute,Item,Location
+from .models.schema import Attribute, Item, Location
 from typing import Dict
 from typing import Dict,Any
 

@@ -13,28 +13,40 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
 
-async def observe_snapshot(ctx:AgentRuntimeCtx) -> Dict[str,Any]:
-    try:
-        obs = await format_prompt(player=ctx.player,action_history=ctx.actions_history,world=ctx.world)
-        return obs
-    except Exception:
-        logger.exception("format_prompt failed for %s", ctx.agent_id)
-        return {}
+# async def observe_snapshot(ctx:AgentRuntimeCtx) -> Dict[str,Any]:
+#     try:
+#         obs = await format_prompt(player=ctx.player,action_history=ctx.actions_history,world=ctx.world)
+#         return obs
+#     except Exception:
+#         logger.exception("format_prompt failed for %s", ctx.agent_id)
+#         return {}
 
-async def plan_by_llm(ctx:AgentRuntimeCtx,obs:Dict[str,Any]) -> List[Dict[str,Any]]:
-    prompts = json.dumps(obs,ensure_ascii=False)
-    # Run blocking LLM call off the event loop to preserve concurrency
-    try:
-        actions = await asyncio.to_thread(ctx.player.agent.act, prompts)
-        return actions
-    except Exception:
-        logger.exception("LLM planning failed for %s", ctx.agent_id)
-        return [{"type": "wait", "seconds": 1}]
+
+
+async def llm_plan(ctx:AgentRuntimeCtx,summary:str=None) -> str:
+    if summary is not None:
+        ctx.player.agent.prompt_builder.summary = summary
+    plan = await asyncio.to_thread(ctx.player.agent.plan, ctx.player, ctx.world)
+    return plan
     
-    
-async def action_with_ws(ctx:AgentRuntimeCtx,action:Dict[str,Any]):
+
+async def llm_act(ctx:AgentRuntimeCtx,plan:str=None) -> List[Dict[str,Any]]:
+    if plan is not None:
+        ctx.player.agent.prompt_builder.plan = plan
+    actions = await asyncio.to_thread(ctx.player.agent.act, ctx.player, ctx.world)
+    return actions
+
+async def llm_summary(ctx:AgentRuntimeCtx,plan:str=None) -> str:
+    if plan is not None:
+        ctx.player.agent.prompt_builder.plan = plan
+    summary = await asyncio.to_thread(ctx.player.agent.reflect, ctx.player, ctx.world)
+    ctx.player.agent.prompt_builder.summary = summary
+    return summary
+
+async def ws_link(ctx:AgentRuntimeCtx,action:Dict[str,Any]):
     status = await ctx.actionMethod.method_action(ctx,action)
     return status
+
 
 async def main():
     # 开启ws服务
@@ -45,8 +57,6 @@ async def main():
     players:List[Player] = [Player.from_raw(id=id+1,raw=raw,player_num=len(PLAYER_INFO)) for id,raw in enumerate(PLAYER_INFO.values())]
     
    
-
-
     # 初始化世界
     world = World(players=players)
     world_lock = asyncio.Lock()
@@ -63,7 +73,7 @@ async def main():
     # 创建agent运行环境
     dispatcher = WsDispatcher(wsserver)
 
-    ctxs = [AgentRuntimeCtx(actionMethod=ActionMethod(),agent_id=f"agent-{p.id}",player=p,world=world,world_lock=world_lock,dispatch=dispatcher,actions_history=[],last_result=None,observe_fn=observe_snapshot,Plan_fn=plan_by_llm,act_fn=action_with_ws) for p in players]
+    ctxs = [AgentRuntimeCtx(actionMethod=ActionMethod(),agent_id=f"agent-{p.id}",player=p,world=world,world_lock=world_lock,dispatch=dispatcher,actions_history=[],plan=llm_plan,act=llm_act,summary=llm_summary,link=ws_link) for p in players]
 
     # 启动agent运行环境，并保持主协程存活
     mgr = AgentManager()

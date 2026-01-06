@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Any, Dict, List
-
+from .new_prompt import PromptModule
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import PydanticOutputParser
@@ -10,14 +10,15 @@ from langchain_classic.output_parsers import (
     PydanticOutputParser,
     RetryWithErrorOutputParser,
 )
-from .actions import ActionList
+from .models.actions import ActionList
 
 logger = logging.getLogger(__name__)
 
 
 class Agent:
-    def __init__(self, name: str, model: str = "Qwen/Qwen3-VL-32B-Instruct", **kwargs):
+    def __init__(self, name: str, model: str = "gpt-4.1-mini-2025-04-14", **kwargs):
         self.llm = ChatOpenAI(model=model, temperature=0)
+        self.prompt_builder = PromptModule()
         self.name = name
         self.parser = PydanticOutputParser(pydantic_object=ActionList)
         self.fixer = OutputFixingParser.from_llm(parser=self.parser, llm=self.llm)
@@ -27,10 +28,32 @@ class Agent:
         self.state = kwargs.get("state", {})
         self.cfg = kwargs
 
-    def act(self, message: str) -> List[Dict[str, Any]]:
+    def plan(self, player, world) -> str:
+        prompt = self.prompt_builder.get_top_level_plan(player, world)
+        msgs = [
+            SystemMessage(content="请只输出你的计划，不要任何解释文本"),
+            HumanMessage(content=prompt),
+        ]
+        resp = self.llm.invoke(msgs).content
+        return resp
+
+
+
+    def reflect(self, player, world) -> str:
+        prompt = self.prompt_builder.get_reflection_and_summary(player, world)
+        msgs = [
+            SystemMessage(content="请根据提示内容进行反思和总结，不要任何解释文本"),
+            HumanMessage(content=prompt),
+        ]
+        resp = self.llm.invoke(msgs).content
+        return resp
+
+
+    def act(self, player, world) -> List[Dict[str, Any]]:
+        prompt = self.prompt_builder.get_local_action(player, world)
         msgs = [
             SystemMessage(content="只输出动作JSON（可单个或数组），不要任何解释文本"),
-            HumanMessage(content=message),
+            HumanMessage(content=prompt),
         ]
         resp = self.llm.invoke(msgs).content
         actions = None
@@ -77,4 +100,3 @@ class Agent:
 if __name__ == "__main__":
     a = Agent("test")
     print("Agent initialized:", a.name)
-

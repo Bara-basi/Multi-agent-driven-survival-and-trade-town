@@ -1,77 +1,23 @@
 """
-动作Schema(Pydantic),统一json协议：只允许原子动作
+动作执行逻辑（ActionMethod）。
+
+动作相关的 Pydantic 数据模型已迁移到 `agent.models.actions`，避免 schema 和业务
+代码混在同一文件里导致的循环导入。
 """
 import json
 import logging
 import random
 import time
 from dataclasses import dataclass
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union
-
-from pydantic import BaseModel, Field, RootModel
+from typing import Any, Dict,List,Optional
 
 from .agent_config import TIME_RATIO
-from .schema import Container, Item, Market
+from .models.actions import ActionList
+from .models.schema import Container, Item, Market
 from .world import World
 logger = logging.getLogger(__name__)
-# 判别字段: type
-class Move(BaseModel):
-    type: Literal["move"]
-    to: str
 
-class Consume(BaseModel):
-    type: Literal["consume"]
-    item: str  # 可乐/面包/书/小背包……
-    qty: int | None = None  # 可空，默认为1
-
-class Sleep(BaseModel):
-    type: Literal["sleep"]
-    minutes: float
-
-class Cook(BaseModel):
-    type: Literal["cook"]
-    input: str          # 鱼
-    tool: str | None = None  # 锅/便携炉（可空，服务端决定默认）
-
-class Fishing(BaseModel):
-    type: Literal["fishing"]
-    minutes: float | None = 10
-
-class Trade(BaseModel):
-    type: Literal["trade"]
-    mode: Literal["buy", "sell", "exchange"]
-    item: str
-    qty: Optional[int]
-    with_: str | None = None          # exchange 时对方(玩家/商店)
-    get_item: str | None = None       # exchange 时对方物品/钱
-    get_qty:Optional[int]             
-
-class Store(BaseModel):
-    type: Literal["store"]
-    item: str
-    qty: int
-    container: str  # 冰箱/储物柜
-
-class Retrieve(BaseModel):
-    type: Literal["retrieve"]
-    item: str
-    qty: int
-    container: str
-
-class Talk(BaseModel):
-    type: Literal["talk"]
-    to: str
-    content: str
-
-class Wait(BaseModel):
-    type: Literal["wait"]
-    seconds: float
-
-Action = Annotated[Union[Move,Consume,Sleep,Cook,Fishing,Trade,Store,Retrieve,Talk,Wait], Field(discriminator="type")]
-
-class ActionList(RootModel[Union[Action, List[Action]]]):
-    """允许返回单个动作或动作列表"""
-    pass
+__all__ = ["ActionList", "ActionMethod"]
 
 
 

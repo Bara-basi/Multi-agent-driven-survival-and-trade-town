@@ -1,7 +1,7 @@
 import json,random
 from datetime import datetime
 from typing import List,Dict,Any
-from .schema import Item,Container,Location,Market
+from .models.schema import Container, Item, Location, Market
 from .agent_config import PLAYER_INFO,TIME_RATIO
 # from .player import Player
 from dataclasses import dataclass, field

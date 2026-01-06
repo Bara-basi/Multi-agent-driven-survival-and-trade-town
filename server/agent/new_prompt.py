@@ -1,13 +1,12 @@
+import json
 from datetime import datetime
-from .player import Player
 from .world import World
-from .schema import Item,Container,Location,Market
+from typing import Any
+from .models.schema import Container, Item, Location, Market
 
 
 class PromptModule:
-    def __init__(self,player:Player,world:World) -> None:
-        self.player = player
-        self.world = world
+    def __init__(self) -> None:
         self.summary = "今天是第一天，没有总结\n"
         self.plan = "暂无计划，请任意发挥\n"
         self.action_map = "以下是允许的指令：\n吃/喝/读/大小背包/使用任何消耗品:{type:consume,item:风干肉,qty:1}\n烹饪:{type:cook,input:鱼,tool:锅}\n睡觉:{type:sleep, minutes:30}\n购买:{type:trade,mode:buy,item:面包,qty:2}\n出售:{type:trade,mode:sell,item:书,qty:1}\n交谈:{type:talk,target:玩家1,content:你好}\n原地等待,时间按照现实时间消耗:{type:wait,seconds:10}\n存储物品到容器:{type:store,item:鱼,qty:1,container:储物柜}\n取出物品:{type:retrieve,item:鱼,qty:1,container:冰箱}\n钓鱼:{type:fishing}\n结束计划：{type:finish}"
@@ -16,34 +15,34 @@ class PromptModule:
         
 
 
-    def _get_base_prompt(self) -> str:
+    def _get_base_prompt(self,player,world) -> str:
         # 永驻提示词模块
         title = "## 背景与基本信息\n"
         game_background = "你受邀参加了一个贸易游戏，你被带到一个封闭的小镇，小镇中只有一个集市、一片森林、一条小河和几个玩家的住所。游戏目标：在不死亡的前提下尽快赚到 ¥10,000。\n"
-        player_identity = f"你的身份是：{self.player.identity},{self.player.info} 你的技能是：{self.player.skill}目前,你身上有 ¥{self.player.money}。"
-        location =  f"你现在所在的位置是：{self.player.cur_location}。\n"
-        time = f"当前的时间是：{self.world.get_format_time()}。\n"
-        attr = f"你的生存属性有：饥饿值 {round(self.player.attribute['hunger'].current,2)}，疲劳值 {round(self.player.attribute['fatigue'].current,2)}，水分值 {round(self.player.attribute['thirst'].current,2)}。属性值越低，你的生存状态越差，请注意补充。\n"
-        if len(self.player.inventory.items) == 0:
+        player_identity = f"你的身份是：{player.identity},{player.info} 你的技能是：{player.skill}目前,你身上有 ¥{player.money}。"
+        location =  f"你现在所在的位置是：{player.cur_location}。\n"
+        time = f"当前的时间是：{world.get_format_time()}。\n"
+        attr = f"你的生存属性有：饥饿值 {round(player.attribute['hunger'].current,2)}，疲劳值 {round(player.attribute['fatigue'].current,2)}，水分值 {round(player.attribute['thirst'].current,2)}。属性值越低，你的生存状态越差，请注意补充。\n"
+        if len(player.inventory.items) == 0:
             backpack_zipped = "背包物品：你的背包里现在没有物品。\n"
         else:
-            backpack_zipped = "你的背包里有："+",".join([f"{item.name}*{item.quantity}" for item in self.player.inventory.items.values()])+"\n"
+            backpack_zipped = "你的背包里有："+",".join([f"{item.name}*{item.quantity}" for item in player.inventory.items.values()])+"\n"
         return title+game_background+player_identity+location+time+attr+backpack_zipped
 
 
-    def get_top_level_plan(self) -> str:
+    def get_top_level_plan(self,player,world) -> str:
         # 计划制定模块
-        base_prompt = self._get_base_prompt()
+        base_prompt = self._get_base_prompt(player,world)
         last_summary = "## 上一次的总结\n"+self.summary
         locations_info_zipped = "## 地点信息\n"
-        for location,accessible in self.player.accessible.items():
+        for location,accessible in player.accessible.items():
             if accessible == 0:
                 locations_info_zipped += f"{location}:未知地区，访问后得知详情\n"
-            elif accessible == 1  and location in self.world.locations:
-                locations_info_zipped += f"{location}:{self.world.locations[location].description}\n"
-        for player_id,location in self.world.players_home.items():
-            if player_id == self.player.id:
-                formatted_facilities = self.format_facilities()
+            elif accessible == 1  and location in world.locations:
+                locations_info_zipped += f"{location}:{world.locations[location].description}\n"
+        for player_id,location in world.players_home.items():
+            if player_id == player.id:
+                formatted_facilities = self.format_facilities(player,world)
                 locations_info_zipped += f"你的家:{location.description}\n"+formatted_facilities
             else:
                 locations_info_zipped += f"玩家{player_id}的家:{location.description}\n"
@@ -52,67 +51,71 @@ class PromptModule:
   
         title = "## 计划制定(你现在的任务)\n"
         top_level_plan_module = "现在，请你根据周围的环境、自身的情况和对前段时间的总结，制定接下来的计划,并以“我接下来应该……”作为开头。\n" 
-        return base_prompt + last_summary + locations_info_zipped + title + top_level_plan_module 
-        
+        prompt = base_prompt + last_summary + locations_info_zipped + title + top_level_plan_module
+        self.write_prompt_log("plan",prompt,player) 
+        return prompt
         
         
 
 
-    def get_local_action(self) -> str:
+    def get_local_action(self,player,world) -> str:
         # 局域动作模块
-        base_prompt = self._get_base_prompt()
+        base_prompt = self._get_base_prompt(player,world)
         title = "## 动作规划(你现在的任务)\n"
         local_action_prompt ="请你根据计划和记忆判断现在应该做什么？输出成一个json格式的指令，注意，你只允许输出纯json内容,如果你认为计划的内容都已经完成了，输出{type:finish}即可。\n"
         memory_title = "## 你的记忆\n"
-        if len(self.player.memory) == 0:
+        if len(player.memory) == 0:
             memory = "你刚来到这里，对周围还不熟悉。\n"
         else:
-            memory = "近10条动作记录"+"\n".join(self.player.memory[-10:])+"\n"
+            memory = "近10条动作记录"+"\n".join(player.memory[-10:])+"\n"
         plan_title = "## 当前计划\n"
 
-        location = self.player.cur_location
+        location = player.cur_location
         if location == "集市":
-            item_list = self.format_market_item_list()
-            location_info = f"你当前所在的位置是 {location}，地点信息：{self.world.locations[location].description}\n" + item_list
-        elif location == "家" or location == f"玩家{self.player.id}的家":
-            formated_facilities = self.format_facilities()
-            location_info = f"你当前所在的位置是 {location}，地点信息：{self.world.players_home[self.player.id].description}\n" + formated_facilities
+            item_list = self.format_market_item_list(world)
+            location_info = f"你当前所在的位置是 {location}，地点信息：{world.locations[location].description}\n" + item_list
+        elif location == "家" or location == f"玩家{player.id}的家":
+            formated_facilities = self.format_facilities(player,world)
+            location_info = f"你当前所在的位置是 {location}，地点信息：{world.players_home[player.id].description}\n" + formated_facilities
             
         else:
-            location_info = f"你当前所在的位置是 {location}，地点信息：{self.world.locations[location].description}\n"
+            location_info = f"你当前所在的位置是 {location}，地点信息：{world.locations[location].description}\n"
 
 
 
 
-        return base_prompt + location_info + memory_title + memory + plan_title + self.plan + title + local_action_prompt + self.action_map + self.error_log
+        prompt = base_prompt + location_info + memory_title + memory + plan_title + self.plan + title + local_action_prompt + self.action_map + self.error_log
+        self.write_prompt_log("act",prompt,player)
+        return prompt    
             
-            
 
 
-    def get_reflection_and_summary(self) -> str:
+    def get_reflection_and_summary(self,player,world) -> str:
         # 反思总结模块
         reflection_and_summary_module = "你之前的计划是否已经实现了？请你根据记忆总结你至今为止做的事情,并反思你在这段时间里的收获和问题,比如“通过差价成功盈利”、“没有注意饱食度差点饿死”等,回答最好精简一些\n"
-        base_prompt = self._get_base_prompt()
+        base_prompt = self._get_base_prompt(player,world)
         title = "## 总结反思(你现在的任务)\n"
         plan_title = "## 最近的计划\n"
         memory_title = "## 你的记忆\n"
-        if len(self.player.memory) == 0:
+        if len(player.memory) == 0:
             memory = "你刚来到这里，对周围还不熟悉。\n"
         else:
-            memory = "近20条动作记录"+"\n".join(self.player.memory[-20:])
-        return base_prompt + memory_title + memory + plan_title + self.plan + title + reflection_and_summary_module
+            memory = "近20条动作记录"+"\n".join(player.memory[-20:])
+        prompt = base_prompt + memory_title + memory + plan_title + self.plan + title + reflection_and_summary_module
+        self.write_prompt_log("summary",prompt,player)
+        return prompt
 
 
-    def chat_with_npc(self,anther_player:Player) -> str:
+    def chat_with_npc(self,player,anther_player) -> str:
         # 聊天模块
         title = "## 聊天记录\n"
         return ""
         
         
-    def format_market_item_list(self):
+    def format_market_item_list(self,world) -> str:
         # 根据分类提取更加适合模型阅读的商品列表
         title = "### 商品列表\n"
-        items = self.world.locations["集市"].market.items
+        items = world.locations["集市"].market.items
         formated_items = ""
 
         for item in items:
@@ -145,12 +148,13 @@ class PromptModule:
                 price_info = "远低于市场价，是难得的低价机会，在资金允许的前提下可以重点买入。"
             
             formated_items += f"{name},描述:{description}，占用背包容量:{cost_capacity}，商店存货:{quantity},价格:{price}，{price_info}\n"
-        return title + formated_items
+        prompt = title + formated_items
+        return prompt
     
-    def format_facilities(self):
+    def format_facilities(self,player,world) -> str:
         # 格式化设施列表
         title = "### 室内设施列表\n"
-        facilities = self.world.players_home[self.player.id].inner_facilities
+        facilities = world.players_home[player.id].inner_facilities
         formated_facilities = ""
         for name,facility in facilities.items():
             description = facility.description
@@ -160,7 +164,8 @@ class PromptModule:
                     formated_facilities += f"{name}内物品：{name}内现在没有物品。\n"
                 else:
                     formated_facilities += f"{name}内物品:{','.join([f'{item.name}*{item.quantity}' for item in facility.items.values()])}\n"
-        return title + formated_facilities
-
-
-    
+        prompt = title + formated_facilities
+        return prompt
+    def write_prompt_log(self,prompt_type:str,prompt:str,player):
+        with open(f"debug_log/prompt_{prompt_type}_{player.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.json","w",encoding="utf-8") as f:
+            f.write(json.dumps(prompt,ensure_ascii=False,indent=4))
