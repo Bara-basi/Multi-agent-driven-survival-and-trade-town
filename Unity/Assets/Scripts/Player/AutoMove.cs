@@ -1,3 +1,7 @@
+/*
+驱动角色自动寻路的组件
+*/
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -42,9 +46,17 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
    
 
     [Header("Path Following")]
-    public float arriveCellEpsilon = 0.05f;
+    public float arriveCellEpsilon = 0.2f;
+    public float repathIfBlockedAfterSec = 0.5f;
+    public float hardStuckAfterSec = 2f;
+    public int hardStuckSnapRadius = 2;
     private readonly List<Vector3Int> pathCells = new();
     private int pathIndex = 0;
+    private float stuckTimer = 0f;
+    private float hardStuckTimer = 0f;
+    private Vector3 lastPos;
+    private Vector3Int currentGoalCell;
+    private bool hasGoal = false;
 
     [Header("Obstacle Physics Check")]
     public Collider2D playerCollider;
@@ -60,6 +72,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         rb = GetComponent<Rigidbody2D>();
         if (!cam) cam = Camera.main;
         if (ani) ani.SetInteger("move", 0);
+        lastPos = transform.position;
     }
 
     void FixedUpdate()
@@ -130,11 +143,13 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
                     if (!FindNearestWalkable(ref targetCell, 8))
                     {
                         CancelAuto();
-                        currentCallback?.Invoke();
-                        currentCallback = null;
+                        CompleteCurrent();
                         return;
                     }
                 }
+
+                hasGoal = true;
+                currentGoalCell = targetCell;
 
                 var path = AStar(startCell, targetCell);
                 if (path != null && path.Count > 0)
@@ -142,13 +157,14 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
                     pathCells.Clear();
                     pathCells.AddRange(path);
                     pathIndex = 0;
+                    stuckTimer = 0f;
+                    lastPos = transform.position;
                     NextStep();
                 }
                 else
                 {
                     CancelAuto();
-                    currentCallback?.Invoke();
-                    currentCallback = null;
+                    CompleteCurrent();
                 }
             }else if(curCmd == "waiting")
             {
@@ -167,8 +183,8 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
             else
             {
                 
-                curCmd = "";
                 CancelAuto();
+                CompleteCurrent();
                 print("error:no such command");
             }
 
@@ -182,8 +198,11 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
                 targetWorld.z = 0f;
                 Vector2 dir = (Vector2)(targetWorld - transform.position);
 
-                if (dir.magnitude <= arriveCellEpsilon)
+                float snapDist = Mathf.Max(arriveCellEpsilon, speed * Time.fixedDeltaTime * 1.1f);
+                if (dir.magnitude <= snapDist)
                 {
+                    if (rb != null) rb.position = targetWorld;
+                    else transform.position = targetWorld;
                     pathIndex++;
                     if (pathIndex >= pathCells.Count)
                     {
@@ -191,8 +210,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
                         frozen = true;
                         frozenUntil = Time.time + 3;
                         CancelAuto();
-                        currentCallback?.Invoke();
-                        currentCallback = null;
+                        CompleteCurrent();
                         return;
                     }
                     else
@@ -204,11 +222,48 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
                 {
                     autoMove = dir.normalized;
                 }
+
+                float moved = (transform.position - lastPos).sqrMagnitude;
+                lastPos = transform.position;
+                if (moved < 0.0001f)
+                {
+                    stuckTimer += Time.deltaTime;
+                    hardStuckTimer += Time.deltaTime;
+                    if (stuckTimer > repathIfBlockedAfterSec)
+                    {
+                        RepathFromHere();
+                        stuckTimer = 0f;
+                    }
+                    if (hardStuckTimer > hardStuckAfterSec)
+                    {
+                        var curCell = grid.WorldToCell(transform.position);
+                        if (FindNearestWalkable(ref curCell, hardStuckSnapRadius))
+                        {
+                            var snap = grid.GetCellCenterWorld(curCell);
+                            snap.z = 0f;
+                            if (rb != null) rb.position = snap;
+                            else transform.position = snap;
+                            RepathFromHere();
+                        }
+                        else
+                        {
+                            CancelAuto();
+                            CompleteCurrent();
+                            return;
+                        }
+                        hardStuckTimer = 0f;
+                    }
+                }
+                else
+                {
+                    stuckTimer = 0f;
+                    hardStuckTimer = 0f;
+                }
             }
             else
             {
-                curCmd = "";
                 CancelAuto();
+                CompleteCurrent();
             }
         }else if(curCmd == "waiting")
         {
@@ -220,9 +275,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
             {
                 print("stop");
                 hud.StopWork();
-                currentCallback?.Invoke();
-                currentCallback = null;
-                curCmd = "";
+                CompleteCurrent();
             }
 
         }
@@ -255,8 +308,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         //短暂屏蔽自动寻路
         CancelAuto();
         //传送必定完成某次移动，返回成功响应
-        currentCallback?.Invoke();
-        currentCallback = null;
+        CompleteCurrent();
         suspendTimer = Mathf.Max(suspendTimer, seconds);
     }
     //public void SetFrozen(bool frozen)
@@ -268,8 +320,39 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         pathCells.Clear();
         pathIndex = 0;
         autoMove = Vector2.zero;
-        currentCallback?.Invoke();
+        stuckTimer = 0f;
+        hardStuckTimer = 0f;
+        hasGoal = false;
+    }
+
+    void CompleteCurrent()
+    {
+        var cb = currentCallback;
         currentCallback = null;
+        curCmd = "";
+        cb?.Invoke();
+    }
+
+    void RepathFromHere()
+    {
+        if (!hasGoal) return;
+
+        var startCell = grid.WorldToCell(transform.position);
+        var goalCell = currentGoalCell;
+        if (!IsWalkable(goalCell))
+        {
+            if (!FindNearestWalkable(ref goalCell, 8)) return;
+            currentGoalCell = goalCell;
+        }
+
+        var path = AStar(startCell, goalCell);
+        if (path != null && path.Count > 0)
+        {
+            pathCells.Clear();
+            pathCells.AddRange(path);
+            pathIndex = 0;
+            NextStep();
+        }
     }
 
     void NextStep()
@@ -293,15 +376,15 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         {
             var sz = playerCollider.bounds.size;
             probeSize = new Vector2(
-                Mathf.Max(0.01f, sz.x - 2f * extraClearance),
-                Mathf.Max(0.01f, sz.y - 2f * extraClearance)
+                Mathf.Max(0.01f, sz.x + 2f * extraClearance),
+                Mathf.Max(0.01f, sz.y + 2f * extraClearance)
             );
         }
         else
         {
             probeSize = new Vector2(
-                Mathf.Max(0.01f, Mathf.Abs(grid.cellSize.x) - 2f * extraClearance),
-                Mathf.Max(0.01f, Mathf.Abs(grid.cellSize.y) - 2f * extraClearance)
+                Mathf.Max(0.01f, Mathf.Abs(grid.cellSize.x) + 2f * extraClearance),
+                Mathf.Max(0.01f, Mathf.Abs(grid.cellSize.y) + 2f * extraClearance)
             );
         }
 

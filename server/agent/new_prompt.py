@@ -1,4 +1,4 @@
-import json
+import json,os
 from datetime import datetime
 from .world import World
 from typing import Any
@@ -9,7 +9,7 @@ class PromptModule:
     def __init__(self) -> None:
         self.summary = "今天是第一天，没有总结\n"
         self.plan = "暂无计划，请任意发挥\n"
-        self.action_map = "以下是允许的指令：\n吃/喝/读/大小背包/使用任何消耗品:{type:consume,item:风干肉,qty:1}\n烹饪:{type:cook,input:鱼,tool:锅}\n睡觉:{type:sleep, minutes:30}\n购买:{type:trade,mode:buy,item:面包,qty:2}\n出售:{type:trade,mode:sell,item:书,qty:1}\n交谈:{type:talk,target:玩家1,content:你好}\n原地等待,时间按照现实时间消耗:{type:wait,seconds:10}\n存储物品到容器:{type:store,item:鱼,qty:1,container:储物柜}\n取出物品:{type:retrieve,item:鱼,qty:1,container:冰箱}\n钓鱼:{type:fishing}\n结束计划：{type:finish}"
+        self.action_map = "除了上述地点对应的指令，以下是其它允许的指令：\n吃/喝/读/大小背包/使用任何消耗品:{type:consume,item:风干肉,qty:1}\n烹饪:{type:cook,input:鱼,tool:锅}\n睡觉:{type:sleep, minutes:30}\n购买:{type:trade,mode:buy,item:面包,qty:2}\n出售:{type:trade,mode:sell,item:书,qty:1}\n交谈:{type:talk,target:玩家1,content:你好}\n原地等待,时间按照现实时间消耗:{type:wait,seconds:10}\n存储物品到容器:{type:store,item:鱼,qty:1,container:储物柜}\n取出物品:{type:retrieve,item:鱼,qty:1,container:冰箱}\n钓鱼:{type:fishing}\n结束计划：{type:finish},你没有必要输出移动到某处的指令，系统会根据你要做的事情自动前往目的地\n"
         # 如果错误日志不为空，说明上一步动作运行失败，需要把错误日志传入提示词
         self.error_log = ""
         
@@ -50,7 +50,7 @@ class PromptModule:
         
   
         title = "## 计划制定(你现在的任务)\n"
-        top_level_plan_module = "现在，请你根据周围的环境、自身的情况和对前段时间的总结，制定接下来的计划,并以“我接下来应该……”作为开头。\n" 
+        top_level_plan_module = "现在，请你根据周围的环境、自身的情况和对前段时间的总结，制定接下来几个小时内的计划,并保证计划是有抓手，可操作的，并以“我接下来应该……”作为开头。\n" 
         prompt = base_prompt + last_summary + locations_info_zipped + title + top_level_plan_module
         self.write_prompt_log("plan",prompt,player) 
         return prompt
@@ -62,7 +62,7 @@ class PromptModule:
         # 局域动作模块
         base_prompt = self._get_base_prompt(player,world)
         title = "## 动作规划(你现在的任务)\n"
-        local_action_prompt ="请你根据计划和记忆判断现在应该做什么？输出成一个json格式的指令，注意，你只允许输出纯json内容,如果你认为计划的内容都已经完成了，输出{type:finish}即可。\n"
+        local_action_prompt ="请你根据计划和记忆判断有哪些事情已经完成了，还有哪些事情要做？请给出接下来最近几步的动作，最多5步，输出成一个json格式的指令，注意，你只允许输出纯json内容,如果你认为计划的内容都已经完成了，输出{type:finish}即可。\n"
         memory_title = "## 你的记忆\n"
         if len(player.memory) == 0:
             memory = "你刚来到这里，对周围还不熟悉。\n"
@@ -115,19 +115,18 @@ class PromptModule:
     def format_market_item_list(self,world) -> str:
         # 根据分类提取更加适合模型阅读的商品列表
         title = "### 商品列表\n"
-        items = world.locations["集市"].market.items
+        items = world.locations["集市"].items
         formated_items = ""
 
-        for item in items:
-            if item.quantity == 0:
+        for name,item in items.items():
+            quantity = item['quantity']
+            if quantity == 0:
                 continue
-            name = item.name
-            price = item.cur_price
-            quantity = item.quantity
-            description = item.description
-            cost_capacity = item.cost_capacity
-            
-            ratio = price / item.avg_price
+            price = item['cur_price']
+            description = item['description']
+            unit_capacity = item['unit_capacity']
+
+            ratio = price / item['avg_price']
             # 远高于市场价
             if ratio >= 1.30:
                 price_info =  "远高于市场价，不推荐购买，如有库存可以考虑趁高卖出。"
@@ -147,7 +146,7 @@ class PromptModule:
             else:
                 price_info = "远低于市场价，是难得的低价机会，在资金允许的前提下可以重点买入。"
             
-            formated_items += f"{name},描述:{description}，占用背包容量:{cost_capacity}，商店存货:{quantity},价格:{price}，{price_info}\n"
+            formated_items += f"{name},描述:{description}，占用背包容量:{unit_capacity}，商店存货:{quantity},价格:{price}，{price_info}\n"
         prompt = title + formated_items
         return prompt
     
@@ -167,5 +166,7 @@ class PromptModule:
         prompt = title + formated_facilities
         return prompt
     def write_prompt_log(self,prompt_type:str,prompt:str,player):
-        with open(f"debug_log/prompt_{prompt_type}_{player.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.json","w",encoding="utf-8") as f:
+        if os.path.exists("debug_log/prompt") == False:
+            os.makedirs("debug_log/prompt")
+        with open(f"debug_log/prompt/{prompt_type}_{player.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.txt","w",encoding="utf-8") as f:
             f.write(json.dumps(prompt,ensure_ascii=False,indent=4))

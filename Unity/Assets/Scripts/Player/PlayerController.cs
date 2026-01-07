@@ -1,3 +1,7 @@
+/*
+角色控制器：处理手动输入与自动寻路输入的整合，驱动动画与刚体运动,包含使用键盘WASD的手动输入
+*/
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 

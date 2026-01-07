@@ -1,3 +1,7 @@
+/*
+ç‚¹å‡»åœ°å›¾ä»¥é©±åŠ¨è§’è‰²è‡ªåŠ¨å¯»è·¯çš„ç»„ä»¶
+*/
+
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -20,10 +24,10 @@ public class ClickToMove2D : MonoBehaviour
     public Collider2D playerCollider;   
     public LayerMask obstacleMask;
     [Range(0f, 0.2f)]
-    public float extraClearance = 0.02f;  // ¸øÌ½²âºĞÔÙÊÕÒ»µã±ß£¬±ÜÃâÌùÇ½
+    public float extraClearance = 0.02f;  // æ¢æµ‹ç¢°æ’çš„é¢å¤–ç•™ç™½ï¼Œé¿å…è´´å¢™
 
     [Header("Path Following")]
-    public float arriveCellEpsilon = 0.2f;   // ÈÏÎªµ½´ï¸ñÖĞĞÄµÄ¾àÀë
+    public float arriveCellEpsilon = 0.2f;   // è®¤ä¸ºåˆ°è¾¾ç›®æ ‡æ ¼çš„è·ç¦»é˜ˆå€¼
     public float repathIfBlockedAfterSec = 0.5f;
 
     private readonly List<Vector3Int> pathCells = new();
@@ -41,7 +45,7 @@ public class ClickToMove2D : MonoBehaviour
 
     void Update()
     {
-        // --- 1) ¼üÅÌÇÀÕ¼£ºÓĞÈËÎªÊäÈë¾ÍÁ¢¿Ì¶ªÆú×Ô¶¯Ñ°Â· ---
+        // --- 1) æ‰‹åŠ¨è¾“å…¥å ç”¨æ—¶ï¼Œè‡ªåŠ¨å¯»è·¯æš‚åœ ---
         if (player != null && player.IsManualControlling)
         {
             CancelAuto();
@@ -53,7 +57,7 @@ public class ClickToMove2D : MonoBehaviour
             CancelAuto();
             return;
         }
-        // --- 2) Êó±êµã»÷·¢ÆğÑ°Â· ---
+        // --- 2) ç‚¹å‡»è®¾ç½®ç›®æ ‡å¹¶å¼€å§‹å¯»è·¯ ---
         if (Mouse.current != null && Mouse.current.leftButton.wasReleasedThisFrame)
         {
             Vector3 world = cam.ScreenToWorldPoint(Mouse.current.position.ReadValue());
@@ -85,7 +89,7 @@ public class ClickToMove2D : MonoBehaviour
             }
         }
 
-        // --- 3) ×Ô¶¯ÑØÂ·ĞĞ×ß ---
+        // --- 3) æ²¿è·¯å¾„ç§»åŠ¨ ---
         if (pathCells.Count > 0)
         {
             Vector3 targetWorld = grid.GetCellCenterWorld(pathCells[pathIndex]);
@@ -97,7 +101,7 @@ public class ClickToMove2D : MonoBehaviour
                 pathIndex++;
                 if (pathIndex >= pathCells.Count)
                 {
-                    CancelAuto(); // ÖÕµã
+                    CancelAuto(); // åˆ°è¾¾ç»ˆç‚¹
                     return;
                 }
                 else
@@ -110,7 +114,7 @@ public class ClickToMove2D : MonoBehaviour
                 player.SetAutoMove(dir.normalized);
             }
 
-            // ¼òµ¥¿¨×¡¼ì²â£º»ù±¾Ã»Î»ÒÆÔòÖØËã
+            // ç®€å•å¡ä½æ£€æµ‹ï¼šä½ç½®å‡ ä¹ä¸åŠ¨å°±é‡ç®—è·¯å¾„
             float moved = (transform.position - lastPos).sqrMagnitude;
             lastPos = transform.position;
             if (moved < 0.0001f)
@@ -139,7 +143,7 @@ public class ClickToMove2D : MonoBehaviour
 
     public void Suspend(float seconds)
     {
-        //¶ÌÔİÆÁ±Î×Ô¶¯Ñ°Â·
+        // çŸ­æš‚å±è”½è‡ªåŠ¨å¯»è·¯
         CancelAuto();
         suspendTimer = Mathf.Max(suspendTimer,seconds);
     }
@@ -169,16 +173,16 @@ public class ClickToMove2D : MonoBehaviour
         }
     }
 
-    // ---------- ¿É×ßĞÔ£ºTile + ÎïÀíÅö×²Ë«ÖØÅĞ¶¨ ----------
+    // ---------- å¯è¡Œèµ°æ£€æµ‹ï¼šTile + ç‰©ç†ç¢°æ’ ----------
     bool IsWalkable(Vector3Int cell)
     {
-        // Ö»ÔÊĞí×ßÔÚµØ°åÍßÉÏ
+        // åªå…è®¸åœ°é¢ Tilemap ä¸Šçš„æ ¼å­
         //if (groundTilemap && !groundTilemap.HasTile(cell)) return false;
 
-        // Ä¿±ê¸ñµÄÊÀ½çÖĞĞÄ
+        // ç›®æ ‡æ ¼å­çš„ä¸–ç•Œåæ ‡ä¸­å¿ƒ
         Vector3 center = grid.GetCellCenterWorld(cell);
 
-        // ÓÃ¡°Íæ¼ÒÅö×²ºĞµÄÊÀ½ç³ß´ç - Ò»µãÓàÁ¿¡±µ±Ì½²â³ß´ç
+        // æ¢æµ‹ç›’å°ºå¯¸ï¼šç”¨ç¢°æ’ä½“å¤§å°å‡å»ç•™ç™½
         Vector2 probeSize;
         if (playerCollider != null)
         {
@@ -190,24 +194,24 @@ public class ClickToMove2D : MonoBehaviour
         }
         else
         {
-            // ¶µµ×£ºÓÃ¸ñ×Ó´óĞ¡ - ÓàÁ¿
+            // æ— ç¢°æ’ä½“æ—¶ç”¨ç½‘æ ¼å°ºå¯¸è®¡ç®—æ¢æµ‹ç›’
             probeSize = new Vector2(
                 Mathf.Max(0.01f, Mathf.Abs(grid.cellSize.x) - 2f * extraClearance),
                 Mathf.Max(0.01f, Mathf.Abs(grid.cellSize.y) - 2f * extraClearance)
             );
         }
 
-        // 1) ÍßÆ¬ÕÏ°­£¨Èç¹ûÄã°ÑÇ½¶¼»­ÔÚ Tilemap_Collision ÉÏ£©
+        // 1) Tilemap_Collision ç›´æ¥æ ‡è®°ä¸ºä¸å¯èµ°
         if (obstacleTilemap && obstacleTilemap.HasTile(cell)) return false;
 
-        // 2) ÎïÀíÕÏ°­£¨TilemapCollider2D/CompositeCollider2D Ò²ÔÚ Obstacles ²ã£©
-        //    Ö»²é obstacleMask£¬±ÜÃâ×²µ½×Ô¼º»òÆäËû²ã
+        // 2) ç‰©ç†ç¢°æ’æ£€æµ‹ï¼ˆTilemapCollider2D/CompositeCollider2D åœ¨ Obstaclesï¼‰
+        //    åªæ£€æµ‹ obstacleMask ä¸­çš„ç¢°æ’ä½“
         if (Physics2D.OverlapBox(center, probeSize, 0f, obstacleMask) != null) return false;
 
         return true;
     }
 
-    // ÔÚÄ¿±êÖÜÎ§ÕÒ×î½ü¿É×ß¸ñ
+    // åœ¨ç›®æ ‡é™„è¿‘å¯»æ‰¾å¯èµ°æ ¼å­
     bool FindNearestWalkable(ref Vector3Int cell, int maxRadius)
     {
         if (IsWalkable(cell)) return true;
@@ -240,7 +244,7 @@ public class ClickToMove2D : MonoBehaviour
         return false;
     }
 
-    // ---------- ¼òÒ× A*£¨4ÁÚ½Ó / Âü¹ş¶ÙÆô·¢£© ----------
+    // ---------- A* å››æ–¹å‘å¯»è·¯ / è·¯å¾„é‡å»º ----------
     List<Vector3Int> AStar(Vector3Int start, Vector3Int goal)
     {
         
@@ -290,7 +294,7 @@ public class ClickToMove2D : MonoBehaviour
         return list;
     }
 
-    // µ÷ÊÔ£º¿ÉÊÓ»¯Â·¾¶
+    // åœ¨ Scene é‡Œç”»å‡ºè·¯å¾„
     void OnDrawGizmos()
     {
         if (pathCells == null || pathCells.Count == 0 || grid == null) return;

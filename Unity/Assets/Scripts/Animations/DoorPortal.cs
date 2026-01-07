@@ -11,7 +11,7 @@ public interface IPortalTraveller
 }
 public class DoorPortal:MonoBehaviour
 {
-    [Tooltip("Íæ¼Ò±»´«ËÍµ½ÕâÀï£¡")]
+    [Tooltip("ç©å®¶è¢«ä¼ é€åˆ°è¿™é‡Œï¼")]
     public Transform targetPosition;
 
     public float preTeleportWait = 2f;

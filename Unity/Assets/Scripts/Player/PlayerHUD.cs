@@ -1,3 +1,4 @@
+
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
@@ -7,12 +8,12 @@ using System.Collections;
 public class PlayerHUD : MonoBehaviour
 {
     [Header("Refs")]
-    public CanvasGroup canvasGroup;             // PlayerHUD ÉÏµÄ CanvasGroup
-    public Animator workIndicatorAnimator;      // WorkIndicator ÉÏµÄ Animator
+    public CanvasGroup canvasGroup;       
+    public Animator workIndicatorAnimator;     
     public StatusPopupSpawner statusPopup;
 
     [Header("Working Indicator")]
-    public bool hideHudWhenIdle = false;        // Ã»ÊÂÊ±ÊÇ·ñÕûÌåÒş²ØHUD
+    public bool hideHudWhenIdle = false;   
     public float showFadeTime = 0.12f;
     public float hideFadeTime = 0.12f;
 
@@ -51,15 +52,15 @@ public class PlayerHUD : MonoBehaviour
         if (hideHudWhenIdle && canvasGroup != null)
             FadeCanvas(1f, showFadeTime);
 
-        // Í£Ö¹¾ÉĞ­³Ì
+        // åœæ­¢æ—§è®¡æ—¶å™¨
         if (_timerCo != null)
             StopCoroutine(_timerCo);
 
-        // Æô¶¯ĞÂĞ­³Ì
+        // æœ‰æ—¶é•¿å°±å¯åŠ¨è®¡æ—¶å™¨
         if (durationSec > 0f)
             _timerCo = StartCoroutine(CoWorkTimer(durationSec));
         else
-            _timerCo = null; // ÎŞÏŞ×ª¶¯Ä£Ê½
+            _timerCo = null; // æ— æ—¶é•¿åˆ™ä¸è®¡æ—¶
     }
 
 

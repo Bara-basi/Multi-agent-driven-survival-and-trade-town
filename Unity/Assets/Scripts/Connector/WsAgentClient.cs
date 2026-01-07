@@ -32,7 +32,7 @@ public class WsAgentClient : MonoBehaviour
     public string serverUrl = "ws://127.0.0.1:9876";
     public string agentId = "agent-1";
 
-    [Header("Î»ÖÃ×Öµä£¨Ãû³Æ->×ø±ê£©")]
+    [Header("ä½ç½®å­—å…¸ï¼ˆåç§°->åæ ‡ï¼‰")]
     public List<LocationPair> locationsSerialized = new();
     public List<LocationPath> locationPaths = new(); 
     private Dictionary<string,List<string>> locationGraph = new();
@@ -47,7 +47,7 @@ public class WsAgentClient : MonoBehaviour
     {
         locationGraph = new Dictionary<string, List<string>>();
         locations = new Dictionary<string, List<Vector2>>();
-        //¹¹½¨ÁÚ½Ó±í
+        //æ„å»ºé‚»æ¥è¡¨
         if (locationsSerialized != null)
         {
             foreach (var pair in locationsSerialized)
@@ -67,27 +67,37 @@ public class WsAgentClient : MonoBehaviour
         }
         navigator = navigatorBehaviour as IAutoNavigator;
         if (navigator == null)
-            Debug.LogError("navigatorBehaviour Î´ÊµÏÖ IAutoNavigator ½Ó¿Ú£¡");
+            Debug.LogError("navigatorBehaviour æœªå®ç° IAutoNavigator æ¥å£ï¼");
     }
 
-     async void Start()
+    async void Start()
     {
         await ConnectAndRun();
         // StartCoroutine(test_call());
 
     }
+    /// <summary>
+    /// æµ‹è¯•è°ƒç”¨çš„åç¨‹æ–¹æ³•ï¼Œç”¨äºå®šæœŸå‘é€JSONæ ¼å¼çš„å‘½ä»¤æ¶ˆæ¯
+    /// </summary>
+    /// <returns>è¿”å›ä¸€ä¸ªWaitForSecondsæšä¸¾å™¨ï¼Œç”¨äºåç¨‹çš„ç­‰å¾…æ“ä½œ</returns>
     private IEnumerator<UnityEngine.WaitForSeconds> test_call()
     {
+        // æ— é™å¾ªç¯ï¼ŒæŒç»­å‘é€æµ‹è¯•æ¶ˆæ¯
         while (true)
         {
+           // æ„å»ºæ›´æ–°çŠ¶æ€çš„JSONå‘½ä»¤å­—ç¬¦ä¸²
            string json = "{\"type\":\"command\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"update_state\",\"target\":\"item\",\"value\":\"10\"}";
-           string json1 = "{\"type\":\"command\",\"cur_location\":\"¼Ò\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"go_to\",\"target\":\"ÊÕÒøÌ¨\",\"value\":\"0\"}";
-           string json2 = "{\"type\":\"command\",\"cur_location\":\"¼¯ÊĞ\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"go_to\",\"target\":\"\",\"value\":\"0\"}";
-           if(agentId == "agent-1")
+           // æ„å»ºä»å®¶åˆ°æ”¶é“¶å°çš„ç§»åŠ¨JSONå‘½ä»¤å­—ç¬¦ä¸²
+           string json1 = "{\"type\":\"command\",\"cur_location\":\"å®¶\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"go_to\",\"target\":\"æ”¶é“¶å°\",\"value\":\"0\"}";
+           // æ„å»ºä»é›†å¸‚åˆ°æ²³æµçš„ç§»åŠ¨JSONå‘½ä»¤å­—ç¬¦ä¸²
+           string json2 = "{\"type\":\"command\",\"cur_location\":\"é›†å¸‚\",\"agent_id\" : \"" + agentId + "\",\"cmd\":\"go_to\",\"target\":\"æ²³æµ\",\"value\":\"0\"}";
+           // å¦‚æœagentIdä¸º"agent-2"ï¼Œåˆ™å‘é€ç§»åŠ¨å‘½ä»¤
+           if(agentId == "agent-2")
             {
-                HandleMessage(json1);
-                HandleMessage(json2);
+                HandleMessage(json1); // å¤„ç†ç¬¬ä¸€ä¸ªç§»åŠ¨å‘½ä»¤
+                HandleMessage(json2); // å¤„ç†ç¬¬äºŒä¸ªç§»åŠ¨å‘½ä»¤
             }
+           // ç­‰å¾…3ç§’åç»§ç»­ä¸‹ä¸€æ¬¡å¾ªç¯
            yield return new WaitForSeconds(3);
 
         }
@@ -102,7 +112,7 @@ public class WsAgentClient : MonoBehaviour
         {
             await ws.ConnectAsync(new Uri(serverUrl), cts.Token);
 
-            // ·¢ËÍ hello£¨Ê¹ÓÃ¿ÉĞòÁĞ»¯ DTO£¬¶ø·ÇÄäÃû¶ÔÏó£©
+            // å‘é€ helloï¼ˆä½¿ç”¨å¯åºåˆ—åŒ– DTOï¼Œè€ŒéåŒ¿åå¯¹è±¡ï¼‰
             await SendJson(new OutMsgHello
             {
                 type = "hello",
@@ -110,13 +120,12 @@ public class WsAgentClient : MonoBehaviour
                 cap = new[] { "waiting" }
             });
 
-            // Æô¶¯½ÓÊÕÑ­»·
+            // å¯åŠ¨æ¥æ”¶å¾ªç¯
             _ = Task.Run(ReceiveLoop);
         }
         catch (Exception e)
         {
-            Debug.LogError("WS connect error: " + e.Message);
-            Invoke(nameof(Retry), 2f);
+            Debug.LogWarning("WS connect failed (backend offline?): " + e.Message);
         }
     }
 
@@ -170,7 +179,7 @@ public class WsAgentClient : MonoBehaviour
                 action_id = msg.action_id
             });
 
-            // Ö÷Ïß³ÌÅÅ¶Ó£º½âÎö×ø±ê -> ÏÂ·¢¸øµ¼º½Æ÷ -> Íê³ÉºóÉÏ±¨
+            // ä¸»çº¿ç¨‹æ’é˜Ÿï¼šè§£æåæ ‡ -> ä¸‹å‘ç»™å¯¼èˆªå™¨ -> å®Œæˆåä¸ŠæŠ¥
             mainThreadQueue.Enqueue(() =>
             {
                 if (!TryResolveTarget(msg, out var target))
@@ -276,7 +285,7 @@ public class WsAgentClient : MonoBehaviour
         return false;
     }
 
-    async Task SendJson(object obj) // ÕâÀï obj ±ØĞëÊÇ [Serializable] µÄÀà/½á¹¹£¬×Ö¶Î¶ø²»ÊÇÊôĞÔ
+    async Task SendJson(object obj) // è¿™é‡Œ obj å¿…é¡»æ˜¯ [Serializable] çš„ç±»/ç»“æ„ï¼Œå­—æ®µè€Œä¸æ˜¯å±æ€§
     {
         if (ws == null || ws.State != WebSocketState.Open) return;
         var json = JsonUtility.ToJson(obj);
@@ -312,12 +321,12 @@ public class WsAgentClient : MonoBehaviour
 
         public static string Fix(string s)
         {
-            // ÔİÁôÂß¼­£¬²»×ö´íÎóÌæ»»£¬Ö±½Ó·µ»Ø
+            // æš‚ç•™é€»è¾‘ï¼Œä¸åšé”™è¯¯æ›¿æ¢ï¼Œç›´æ¥è¿”å›
             return s;
         }
     }
 
-    // ---- ·¢ËÍÓÃ DTO£¨JsonUtility ĞèÒª×Ö¶Î & [Serializable]£© ----
+    // ---- å‘é€ç”¨ DTOï¼ˆJsonUtility éœ€è¦å­—æ®µ & [Serializable]ï¼‰ ----
     [Serializable]
     class OutMsg
     {
@@ -359,7 +368,7 @@ public class WsAgentClient : MonoBehaviour
                 prev[v] = u;
                 if (v == goal)
                 {
-                    // »ØËİÂ·¾¶£ºstart -> ... -> goal
+                    // å›æº¯è·¯å¾„ï¼šstart -> ... -> goal
                     var path = new List<string> { goal };
                     while (prev.ContainsKey(path[path.Count - 1]))
                         path.Add(prev[path[path.Count - 1]]);

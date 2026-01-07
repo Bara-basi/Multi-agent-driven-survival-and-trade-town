@@ -10,6 +10,7 @@ from langchain_classic.output_parsers import (
     PydanticOutputParser,
     RetryWithErrorOutputParser,
 )
+from datetime import datetime
 from .models.actions import ActionList
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,8 @@ class Agent:
             HumanMessage(content=prompt),
         ]
         resp = self.llm.invoke(msgs).content
+        with open(f"debug_log/resp/plan_{player.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.txt","w",encoding="utf-8") as f:
+            f.write(f"{resp}\n")
         return resp
 
 
@@ -46,6 +49,8 @@ class Agent:
             HumanMessage(content=prompt),
         ]
         resp = self.llm.invoke(msgs).content
+        with open(f"debug_log/resp/reflect_{player.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.txt","w",encoding="utf-8") as f:
+            f.write(f"{resp}\n")
         return resp
 
 
@@ -56,6 +61,9 @@ class Agent:
             HumanMessage(content=prompt),
         ]
         resp = self.llm.invoke(msgs).content
+        print("act response:", resp)
+        with open(f"debug_log/resp/act_{player.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.txt","w",encoding="utf-8") as f:
+            f.write(f"{resp}\n")
         actions = None
         if isinstance(resp, str):
             draft = self._strip_code_fence(resp)
@@ -71,6 +79,9 @@ class Agent:
                     actions_obj = single_fixer.parse(draft)
                     actions = actions_obj.root
                 except Exception:
+                    logger.error(
+                        f"Agent {self.name} act parse failed, response: {resp}"
+                    )
                     return [{"type": "wait", "seconds": 1}]
 
             if isinstance(actions, list):
@@ -84,6 +95,7 @@ class Agent:
                     if hasattr(actions, "model_dump")
                     else actions
                 ]
+
         return [{"type": "wait", "seconds": 1}]
 
     def _strip_code_fence(self, s: str) -> str:

@@ -12,7 +12,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
-
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 # async def observe_snapshot(ctx:AgentRuntimeCtx) -> Dict[str,Any]:
 #     try:
 #         obs = await format_prompt(player=ctx.player,action_history=ctx.actions_history,world=ctx.world)
@@ -49,6 +51,19 @@ async def ws_link(ctx:AgentRuntimeCtx,action:Dict[str,Any]):
 
 
 async def main():
+
+    # 清空上一轮的debug日志,删除debug_log/resp目录下的所有文件，但不删除目录
+    import os
+    import shutil
+    resp_dir = "debug_log/resp"  
+    prompt_dir = "debug_log/prompt"  
+    if os.path.exists(resp_dir):
+        shutil.rmtree(resp_dir)
+        os.makedirs(resp_dir)
+    if os.path.exists(prompt_dir):
+        shutil.rmtree(prompt_dir)
+        os.makedirs(prompt_dir)
+
     # 开启ws服务
     wsserver = AgentServer()
     await wsserver.start()

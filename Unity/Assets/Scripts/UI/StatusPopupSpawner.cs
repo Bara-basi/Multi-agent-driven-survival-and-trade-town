@@ -4,9 +4,9 @@ using System.Collections.Generic;
 public class StatusPopupSpawner : MonoBehaviour
 {
     [Header("Refs")]
-    public RectTransform popStack;      // PlayerHUD ÏÂµÄ PopStack
-    public PopItem popItemPrefab;       // PopItem Ô¤ÖÆÌå
-    public StatusIconSet iconSet;       // Í¼±ê±í ScriptableObject
+    public RectTransform popStack;      // PlayerHUD ä¸‹çš„ PopStack
+    public PopItem popItemPrefab;       // PopItem é¢„åˆ¶ä½“
+    public StatusIconSet iconSet;       // å›¾æ ‡è¡¨ ScriptableObject
 
     [Header("Pool")]
     public int prewarmCount = 8;
@@ -15,10 +15,10 @@ public class StatusPopupSpawner : MonoBehaviour
     [Header("Style")]
     public Color positiveColor = new Color(0.2f, 0.9f, 0.3f);
     public Color negativeColor = new Color(0.95f, 0.2f, 0.2f);
-    public float riseDistance = 6f;    // ÉÏÆ®¸ß¶È£¨Óë PopItem ±£³ÖÒ»ÖÂ£©
+    public float riseDistance = 6f;    // ä¸Šé£˜é«˜åº¦ï¼ˆä¸ PopItem ä¿æŒä¸€è‡´ï¼‰
 
     private readonly Queue<PopItem> _pool = new Queue<PopItem>();
-    private readonly List<PopItem> _active = new List<PopItem>(); // 0=×îÔç£¨×îÉÏÃæ£©
+    private readonly List<PopItem> _active = new List<PopItem>(); // 0=æœ€æ—©ï¼ˆæœ€ä¸Šé¢ï¼‰
 
     void Awake()
     {
@@ -42,7 +42,7 @@ public class StatusPopupSpawner : MonoBehaviour
 
         if (_active.Count >= maxActive)
         {
-            // ³¬Á¿Ê±Ç¿ÖÆ»ØÊÕ×îÔçµÄÒ»Ìõ£¬±ÜÃâ±¬ UI
+            // è¶…é‡æ—¶å¼ºåˆ¶å›æ”¶æœ€æ—©çš„ä¸€æ¡ï¼Œé¿å…çˆ† UI
             ForceRecycle(_active[0]);
             _active.RemoveAt(0);
             ReindexLanes();
@@ -67,10 +67,10 @@ public class StatusPopupSpawner : MonoBehaviour
     void ReindexLanes()
     {
         for (int i = 0; i < _active.Count; i++)
-            _active[i].UpdateLane(i);   // i ºÅÌõÄ¿Î»ÓÚ i ºÅ³µµÀ£¨0 ÔÚ×îÉÏ£©
+            _active[i].UpdateLane(i);   // i å·æ¡ç›®ä½äº i å·è½¦é“ï¼ˆ0 åœ¨æœ€ä¸Šï¼‰
     }
 
-    // ¡ª¡ª ¶ÔÍâÎ¨Ò» API ¡ª¡ª
+    // â€”â€” å¯¹å¤–å”¯ä¸€ API â€”â€”
     public void PopStatus(string key, int delta, string overrideText = null)
     {
         var icon = iconSet ? iconSet.Get(key) : null;
@@ -81,7 +81,7 @@ public class StatusPopupSpawner : MonoBehaviour
         var item = Get();
         item.gameObject.SetActive(true);
 
-        int lane = _active.Count;              // ĞÂÀ´µÄ·ÅÔÚ×îÏÂ·½
+        int lane = _active.Count;              // æ–°æ¥çš„æ”¾åœ¨æœ€ä¸‹æ–¹
         item.laneIndex = lane;
         item.riseDistance = riseDistance;
         item.SetLane(lane ,snap: true);
@@ -95,6 +95,6 @@ public class StatusPopupSpawner : MonoBehaviour
         int idx = _active.IndexOf(item);
         if (idx >= 0) _active.RemoveAt(idx);
         Recycle(item);
-        ReindexLanes(); // ÈÃÏÂÃæµÄÌõÄ¿ÕûÌåÉÏÒÆ
+        ReindexLanes(); // è®©ä¸‹é¢çš„æ¡ç›®æ•´ä½“ä¸Šç§»
     }
 }

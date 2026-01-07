@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict,List,Optional
 
-from .agent_config import TIME_RATIO
+from .agent_config import TIME_RATIO,WORLD_PLACE_MAP
 from .models.actions import ActionList
 from .models.schema import Container, Item, Market
 from .world import World
@@ -53,7 +53,7 @@ class ActionMethod:
             elif action_type == "fishing":
                 return await self.fishing(action, player, dispatch, agent_id, world)
             elif action_type == "move":
-                return await self._move(world, player, agent_id, dispatch, target=action["to"])
+                return await self._move(world, player, agent_id, dispatch, target=action["target"])
             elif action_type == "sleep":
                 return {}
             else:
@@ -70,6 +70,15 @@ class ActionMethod:
         3) 扣减状态值
         4) 同步记忆
         '''
+        if not inner_target and target in WORLD_PLACE_MAP:
+            inner_target = WORLD_PLACE_MAP[target]
+        if player.cur_location == target:
+            return {
+                'action':"move",
+                'target':target,
+                'OK':True,
+                'MSG':"你已经在该位置了"
+            }
         if inner_target is None:
             inner_target = target # 屋内导航点不存在则改为使用默认导航点
         if target not in world.locations:
@@ -90,6 +99,7 @@ class ActionMethod:
         logger.info("移动耗时: %s", time_cost)
         res = self._update_attribute(player,time_cost/3600)
         if not res:
+            player.memory.append(json.dumps({world.get_time().strftime("%Y-%m-%d %H:%M"):f"你在移动过程中由于过度疲劳而死亡，游戏结束"},ensure_ascii=False))
             return {
                 'action':"move",
                 'target':target,

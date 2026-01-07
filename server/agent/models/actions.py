@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, RootModel
 
 class Move(BaseModel):
     type: Literal["move"]
-    to: str
+    target: str
 
 
 class Consume(BaseModel):

@@ -12,20 +12,20 @@ public class PopItem : MonoBehaviour
     public RectTransform rt;
 
     [Header("Anim")]
-    public float riseDistance = 6f;      // ×ÔÉí¶¯»­ÉÏÆ®¸ß¶È
-    public float duration = 2.4f;         // ×ÜÊ±³¤
+    public float riseDistance = 6f;      // è‡ªèº«åŠ¨ç”»ä¸Šé£˜é«˜åº¦
+    public float duration = 2.4f;         // æ€»æ—¶é•¿
     public AnimationCurve moveCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
     public AnimationCurve fadeCurve = AnimationCurve.Linear(0, 1, 1, 0);
     public AnimationCurve scaleCurve = AnimationCurve.EaseInOut(0, 1.1f, 1, 1f);
 
     [Header("Lane")]
-    public int laneIndex = 0;             // 0 ÔÚ×îÉÏ·½
+    public int laneIndex = 0;             // 0 åœ¨æœ€ä¸Šæ–¹
 
     private System.Action<PopItem> _onComplete;
     private bool _playing;
-    private Vector2 _laneBase;            // ÓÉ lane ¾ö¶¨µÄ»ù´¡Î»ÖÃ
+    private Vector2 _laneBase;            // ç”± lane å†³å®šçš„åŸºç¡€ä½ç½®
     private Vector2 visual;
-    private float _t;                     // ¶¯»­¼ÆÊ±
+    private float _t;                     // åŠ¨ç”»è®¡æ—¶
 
     void Reset()
     {
@@ -48,7 +48,7 @@ public class PopItem : MonoBehaviour
         }
         else
         {
-            // Æ½»¬»»µÀ£º±£³ÖÊÓ¾õÎ»ÖÃ²»Ìø±ä
+            // å¹³æ»‘æ¢é“ï¼šä¿æŒè§†è§‰ä½ç½®ä¸è·³å˜
             visual = rt.anchoredPosition;
             float p = Mathf.Clamp01(_t / Mathf.Max(0.0001f, duration));
             float moveT = moveCurve.Evaluate(p);
