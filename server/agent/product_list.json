@@ -21,7 +21,7 @@
                     "cook_time": 0.0
                 }
             },
-            "电解质饮料": {
+            "饮料": {
                 "category": "consumable",
                 "avg_price": 6,
                 "cur_price": 6,
@@ -48,18 +48,18 @@
                 "daily_volatility": 0.15,
                 "quantity": 25,
                 "unit_capacity": 1,
-                "description": "强力提神但会口渴,回复12点疲劳值但-5点口渴值。",
+                "description": "强力提神但会口渴,回复30点疲劳值但-5点口渴值。",
                 "consumable": {
                     "effect": {
                         "thirst": -5,
-                        "fatigue": 12
+                        "fatigue": 30
                     },
                     "edible": true,
                     "requires_cook": false,
                     "cook_time": 0.0
                 }
             },
-            "凉茶": {
+            "功能饮料": {
                 "category": "consumable",
                 "avg_price": 6,
                 "cur_price": 6,
@@ -116,7 +116,7 @@
                     "cook_time": 0.0
                 }
             },
-            "肉干": {
+            "肉": {
                 "category": "consumable",
                 "avg_price": 9,
                 "cur_price": 9,
@@ -135,7 +135,25 @@
                     "cook_time": 0.0
                 }
             },
-            "迷之炖菜": {
+            "烤肉":{
+                "category": "consumable",
+                "avg_price": 14,
+                "cur_price": 14,
+                "sell_ratio": 0.80,
+                "daily_volatility": 0.15,
+                "quantity": 25,
+                "unit_capacity": 1,
+                "description": "美味的熟食。回复40点饥饿值。",
+                "consumable": {
+                    "effect": {
+                        "hunger": 40
+                    },
+                    "edible": true,
+                    "requires_cook": false,
+                    "cook_time": 0.0
+                }
+            },
+            "丰盛的食物": {
                 "category": "consumable",
                 "avg_price": 12,
                 "cur_price": 12,
@@ -154,7 +172,7 @@
                     "cook_time": 0.0
                 }
             },
-            "士力架": {
+            "干粮": {
                 "category": "consumable",
                 "avg_price": 8,
                 "cur_price": 8,
@@ -207,40 +225,6 @@
                     "cook_time": 0.0
                 }
             },
-            "便携炉": {
-                "category": "tool",
-                "avg_price": 50,
-                "cur_price": 50,
-                "sell_ratio": 0.80,
-                "daily_volatility": 0.10,
-                "quantity": 12,
-                "unit_capacity": 5,
-                "description": "可替代锅，任何地点烹饪。",
-                "tool": {
-                    "use_action": "cook",
-                    "location_limited": null,
-                    "consumes": {
-                        "燃料罐": 1
-                    },
-                    "notes": "每次烹饪消耗1个燃料罐"
-                }
-            },
-            "燃料罐": {
-                "category": "material",
-                "avg_price": 3,
-                "cur_price": 3,
-                "sell_ratio": 0.80,
-                "daily_volatility": 0.15,
-                "quantity": 60,
-                "unit_capacity": 1,
-                "description": "烹饪用燃料。每次消耗一个。",
-                "material": {
-                    "for_actions": [
-                        "cook"
-                    ],
-                    "notes": "被锅/便携炉消耗"
-                }
-            },
             "钓鱼竿": {
                 "category": "tool",
                 "avg_price": 45,
@@ -273,38 +257,6 @@
                         "fish"
                     ],
                     "notes": "与钓鱼竿一起使用，每次钓鱼消耗1个"
-                }
-            },
-            "斧头": {
-                "category": "tool",
-                "avg_price": 30,
-                "cur_price": 30,
-                "sell_ratio": 0.80,
-                "daily_volatility": 0.10,
-                "quantity": 10,
-                "unit_capacity": 5,
-                "description": "可在森林砍伐树木。",
-                "tool": {
-                    "use_action": "gather",
-                    "location_limited": "森林",
-                    "consumes": null,
-                    "notes": "未来可扩展耐久度/掉落物"
-                }
-            },
-            "猎枪": {
-                "category": "tool",
-                "avg_price": 100,
-                "cur_price": 100,
-                "sell_ratio": 0.80,
-                "daily_volatility": 0.10,
-                "quantity": 5,
-                "unit_capacity": 5,
-                "description": "用于打猎，无法伤害玩家。",
-                "tool": {
-                    "use_action": "hunt",
-                    "location_limited": "森林",
-                    "consumes": null,
-                    "notes": "只用于打猎掉落（由规则层实现）"
                 }
             },
             "银戒指": {

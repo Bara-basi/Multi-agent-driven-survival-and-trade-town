@@ -9,7 +9,20 @@ class PromptModule:
     def __init__(self) -> None:
         self.summary = "今天是第一天，没有总结\n"
         self.plan = "暂无计划，请任意发挥\n"
-        self.action_map = "除了上述地点对应的指令，以下是其它允许的指令：\n吃/喝/读/大小背包/使用任何消耗品:{type:consume,item:风干肉,qty:1}\n烹饪:{type:cook,input:鱼,tool:锅}\n睡觉:{type:sleep, minutes:30}\n购买:{type:trade,mode:buy,item:面包,qty:2}\n出售:{type:trade,mode:sell,item:书,qty:1}\n交谈:{type:talk,target:玩家1,content:你好}\n原地等待,时间按照现实时间消耗:{type:wait,seconds:10}\n存储物品到容器:{type:store,item:鱼,qty:1,container:储物柜}\n取出物品:{type:retrieve,item:鱼,qty:1,container:冰箱}\n钓鱼:{type:fishing}\n结束计划：{type:finish},你没有必要输出移动到某处的指令，系统会根据你要做的事情自动前往目的地\n"
+        self.action_map = """除了上述地点对应的指令，以下是其它允许的指令：
+        吃/喝/读/大小背包/使用任何消耗品:{type:consume,item:风干肉,qty:1}
+        烹饪:{type:cook,input:鱼,tool:锅}
+        睡觉:{type:sleep, minutes:30}
+        购买:{type:trade,mode:buy,item:面包,qty:2}
+        出售:{type:trade,mode:sell,item:书,qty:1}
+        原地等待,时间按照现实时间消耗:{type:wait,seconds:10}
+        存储物品到容器:{type:store,item:鱼,qty:1,container:储物柜}
+        取出物品:{type:retrieve,item:鱼,qty:1,container:冰箱}
+        钓鱼:{type:fishing}
+        移动到某处：{type:move,target:集市},可选地点有：{家，森林，集市，河流，钓鱼点，采集点，收银台，砍伐点，锅，储物柜}
+        结束计划：{type:finish},
+        一般来说，需要做某个操作，你要先去那个地方，很多信息具有实时性，到达那个地方之后，你才知道后续可以怎么安排（输出什么动作），因此，如果你现在输出了一个前往某处的动作，后面不应该继续接其它动作。
+        """
         # 如果错误日志不为空，说明上一步动作运行失败，需要把错误日志传入提示词
         self.error_log = ""
         
@@ -17,8 +30,11 @@ class PromptModule:
 
     def _get_base_prompt(self,player,world) -> str:
         # 永驻提示词模块
-        title = "## 背景与基本信息\n"
-        game_background = "你受邀参加了一个贸易游戏，你被带到一个封闭的小镇，小镇中只有一个集市、一片森林、一条小河和几个玩家的住所。游戏目标：在不死亡的前提下尽快赚到 ¥10,000。\n"
+        title = """## 背景与基本信息
+        """
+        game_background = """
+        你受邀参加了一个贸易游戏，你被带到一个封闭的小镇，小镇中只有一个集市和几个玩家的住所。游戏目标：在不死亡的前提下尽快赚到 ¥10,000。
+        """
         player_identity = f"你的身份是：{player.identity},{player.info} 你的技能是：{player.skill}目前,你身上有 ¥{player.money}。"
         location =  f"你现在所在的位置是：{player.cur_location}。\n"
         time = f"当前的时间是：{world.get_format_time()}。\n"
@@ -146,14 +162,14 @@ class PromptModule:
             else:
                 price_info = "远低于市场价，是难得的低价机会，在资金允许的前提下可以重点买入。"
             
-            formated_items += f"{name},描述:{description}，占用背包容量:{unit_capacity}，商店存货:{quantity},价格:{price}，{price_info}\n"
+            formated_items += f"{name},描述:{description} 占用背包容量:{unit_capacity}，商店存货:{quantity},价格:{price}，{price_info}\n"
         prompt = title + formated_items
         return prompt
     
     def format_facilities(self,player,world) -> str:
         # 格式化设施列表
         title = "### 室内设施列表\n"
-        facilities = world.players_home[player.id].inner_facilities
+        facilities = world.players_home[player.id].inner_things
         formated_facilities = ""
         for name,facility in facilities.items():
             description = facility.description

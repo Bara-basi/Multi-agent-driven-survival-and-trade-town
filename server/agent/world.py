@@ -49,7 +49,7 @@ class World:
     def _init_forest(self):
         """初始化森林"""
         description = "这里是一片茂密的森林，你可以在这里采集木材和野果或尝试狩猎。采集木材需要使用斧头，采集野果则不需要工具。采集木材每次消耗30分钟，采集野果每次消耗15分钟。采集操作格式为{type:collect,target:木材}、{type:collect,target:野果}，狩猎操作格式为{type:hunt}。"
-        forest = Location(name = "森林", description = description, inner_facilities = {})
+        forest = Location(name = "森林", description = description, inner_things = {"野果":1})
         return forest
         
     def _init_players_home(self):
@@ -64,7 +64,7 @@ class World:
             self.players_home[i+1] = Location(
                 name = name,
                 description = description,
-                inner_facilities = inner_home_facilities
+                inner_things = inner_home_facilities
         )
             
 

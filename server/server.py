@@ -111,6 +111,7 @@ class AgentServer:
         cur_location = "",
         value:float  = 0,
         timeout: float = 25.0,
+        type:str = "command",
     ) -> Optional[dict]:
         """
         发送一条 action 给前端（例如 go_to），并等待 'complete' 回包。
@@ -124,7 +125,7 @@ class AgentServer:
 
         action_id = str(uuid.uuid4())
         payload = {
-            "type": "command",
+            "type": type,
             "cur_location":cur_location,
             "agent_id": agent_id,
             "action_id": action_id,
@@ -161,9 +162,11 @@ async def main():
     while not all(server.is_connected(k) for k in ["agent-1","agent-2","agent-3","agent-4"]):
         await asyncio.sleep(0.5)
     print("All agents connected:",server.connected_ids())
-    await server.send_action("agent-1","go_to",target="收银台",cur_location="家")
-    await server.send_action("agent-1","waiting",value = 5)
-    await server.send_action("agent-1","go_to",target="钓鱼点",cur_location="集市")
+    # await server.send_action("agent-1","go_to",target="收银台",cur_location="家")
+    # await server.send_action("agent-1","go_to",target="家",cur_location="收银台")
+    await server.send_action("agent-1","sleeping",value = 5)
+    # await server.send_action("agent-1","waiting",value = 5)
+    # await server.send_action("agent-1","go_to",target="钓鱼点",cur_location="集市")
     await asyncio.sleep(1)
         
 if __name__ == '__main__':

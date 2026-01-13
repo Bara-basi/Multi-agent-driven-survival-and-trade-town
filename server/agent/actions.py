@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict,List,Optional
 
-from .agent_config import TIME_RATIO,WORLD_PLACE_MAP
+from .agent_config import TIME_RATIO,WORLD_PLACE_MAP,SLEEP_RECOVER
 from .models.actions import ActionList
 from .models.schema import Container, Item, Market
 from .world import World
@@ -54,8 +54,10 @@ class ActionMethod:
                 return await self.fishing(action, player, dispatch, agent_id, world)
             elif action_type == "move":
                 return await self._move(world, player, agent_id, dispatch, target=action["target"])
+            elif action_type == "pick_up":
+                return await self.pick_up(action, player, dispatch, agent_id, world)
             elif action_type == "sleep":
-                return {}
+                return await self.sleep(player,action,world,dispatch,agent_id)
             else:
                 return {"action": action_type or "unknown", "OK": False, "MSG": "未知的动作类型"}
         except Exception:
@@ -93,7 +95,7 @@ class ActionMethod:
         
         begin_time = time.time()     
         msg = await dispatch.action(agent_id=agent_id,cmd="go_to",target=inner_target,cur_location=player.cur_location)
-        if not msg or not msg.get("OK"):
+        if not msg or not msg.get("status") !="ok":
             return {"action": "move", "target": target, "OK": False, "MSG": "前端移动失败或超时"}
         time_cost=round((time.time() - begin_time))*TIME_RATIO # 实际时间消耗
         logger.info("移动耗时: %s", time_cost)
@@ -135,16 +137,17 @@ class ActionMethod:
         if item_data.get('consumable') is not None:
 
             # 前端动画
-            msg = await dispatch.action(agent_id=agent_id,cmd="consume",target=item,cur_location=player.cur_location)
-            if not msg or not msg.get("OK"):
+            msg = await dispatch.action(agent_id=agent_id,type="animation",target="item",value = -1 *qty)
+            if not msg or not msg.get("status") != "ok":
                 return {"action": "consume", "target": item, "OK": False, "MSG": "前端使用物品动画失败或超时"}
             effect_data:Dict[str,Any] = item_data['consumable']['effect']
             # 触发属性回复
             for attr,value in effect_data.items():
                 player.attribute[attr].current = min(player.attribute[attr].current + value,100)
+                msg = await dispatch.action(agent_id=agent_id,type="animation",target=attr,value=value)
+                if not msg or not msg.get("status")!="ok":
+                    return {"action": "consume", "target": item, "OK": False, "MSG": "前端更新属性动画失败或超时"}
 
-            
-           
             # 减少背包物品
             self._decreace_qty(world,player.inventory,item,qty)
             # 加入记忆
@@ -160,8 +163,8 @@ class ActionMethod:
                 'capacity':qty*item_data.get('unit_capacity',0)
             }
         elif item_data.get('equipment'):
-            msg = await dispatch.action(agent_id=agent_id,cmd="equip",target=item,cur_location=player.cur_location)
-            if not msg or not msg.get("OK"):
+            msg = await dispatch.action(agent_id=agent_id,type = "animation",target=item,value=1)
+            if not msg or not msg.get("status")!="ok":
                 return {"action": "consume", "OK": False, "MSG": "前端装备物品动画失败或超时"}
             # 装备背包（一次性扩容），回复容量= 扩容值+背包本身占用空间     
             player.inventory.capacity += (item_data["equipment"]['capacity_bonus'])*qty
@@ -231,7 +234,7 @@ class ActionMethod:
                 return msg
 
         msg = await dispatch.action(agent_id=agent_id,cmd="cook",target=item,cur_location=player.cur_location)
-        if not msg or not msg.get("OK"):
+        if not msg or not msg.get("status")!="ok":
             return {"action": "cook", "OK": False, "MSG": "前端烹饪动画失败或超时"}
 
         if not self._decreace_qty(world, player.inventory, item, 1):
@@ -426,7 +429,7 @@ class ActionMethod:
         if not self._decreace_qty(world,container=player.inventory,item="鱼饵",qty=1):
             return {"action": "fishing", "OK": False, "MSG": "鱼饵不足"}
         msg = await dispatch.action(agent_id=agent_id,cmd="fish",target="鱼",cur_location=player.cur_location)
-        if not msg or not msg.get("OK"):
+        if not msg or not msg.get("status")!="ok":
             # 返还鱼饵，避免白扣
             bait_meta = world.item_data.get("鱼饵", {})
             self._increase_qty(
@@ -442,8 +445,8 @@ class ActionMethod:
             # 钓到鱼
             if not self._increase_qty(world,player.inventory,"鱼",1,description=world.item_data['鱼']['description']):
                 return {"action": "fishing", "OK": False, "MSG": "背包已满，无法放入鱼"}
-            msg = await dispatch.action(agent_id=agent_id,cmd="catch_fish",target="鱼",cur_location=player.cur_location)
-            if not msg or not msg.get("OK"):
+            msg = await dispatch.action(agent_id=agent_id,cmd="animation",target="fish",value=1)
+            if not msg or not msg.get("status")!="ok":
                 return {"action": "fishing", "OK": False, "MSG": "前端捕鱼动画失败或超时"}
             if not self._update_attribute(player,time_cost/60):
                 return {
@@ -460,9 +463,9 @@ class ActionMethod:
                 'qty':1
             }
         else:
-            msg = await dispatch.action(agent_id=agent_id,cmd="catch_nothing",target="鱼",cur_location=player.cur_location)
-            if not msg or not msg.get("OK"):
-                return {"action": "fishing", "OK": False, "MSG": "前端捕鱼动画失败或超时"} 
+            # msg = await dispatch.action(agent_id=agent_id,cmd="animation",target="fish",value=1)
+            # if not msg or not msg.get("status")!="ok":
+            #     return {"action": "fishing", "OK": False, "MSG": "前端捕鱼动画失败或超时"} 
             # 钓不到鱼
             self._update_attribute(player,time_cost/60)
             memory = {world.get_time().strftime("%Y-%m-%d %H:%M"):f"你没钓到鱼"}
@@ -477,17 +480,17 @@ class ActionMethod:
     
 
     
-    async def talk(self) -> Dict[str,Any]:
-        """与玩家对话
-            暂未完成
-        """
-        return {}
+    # async def talk(self) -> Dict[str,Any]:
+    #     """与玩家对话
+    #         暂未完成
+    #     """
+    #     return {}
 
     
     async def wait(self,dispatch,agent_id,action,player,) -> Dict[str,Any]:
         """等待"""
-        msg = await dispatch.action(agent_id=agent_id,cmd="wait",target=action['seconds'],cur_location=player.cur_location)
-        if not msg or not msg.get("OK"):
+        msg = await dispatch.action(agent_id=agent_id,cmd="waiting",target=action['seconds'],cur_location=player.cur_location)
+        if not msg or msg.get("status")!="ok":
             return {"action": "wait", "OK": False, "MSG": "前端等待动画失败或超时"}
         if not self._update_attribute(player,action['seconds']*TIME_RATIO/3600):
             return {
@@ -520,7 +523,7 @@ class ActionMethod:
         """
         item = action['item']
         qty = action['qty']
-        container = world.players_home[player.id].inner_facilities.get(action['container'])
+        container = world.players_home[player.id].inner_things.get(action['container'])
         if container is None:
             return {
                 'action':"store",
@@ -567,7 +570,7 @@ class ActionMethod:
         """取出"""
         item = action['item']
         qty = action['qty']
-        container = world.players_home[player.id].inner_facilities.get(action['container'])
+        container = world.players_home[player.id].inner_things.get(action['container'])
         if container is None:
             return {
                 'action':"retrieve",
@@ -605,7 +608,74 @@ class ActionMethod:
             'qty':qty
         }
 
+    async def sleep(self,player,action,world,dispatch,agent_id) :
+        """睡觉"""
+        # 前端发送睡觉指令
+        msg = await dispatch.action(agent_id=agent_id,cmd="sleeping",value=action['minutes']*60/TIME_RATIO)
+        if not msg or msg.get("status")!="ok":
+            return {"action": "sleep", "OK": False, "MSG": "前端睡觉动画失败或超时"}
+        time_cost = action['minutes'] * TIME_RATIO
+        res = self._update_attribute(player,time_cost/60,attr_names=["hunger","thirst"])
+        if not res:
+            return {
+                'action':"sleep",
+                'OK':False,
+                'MSG':f"玩家睡觉时由于饥饿或口渴而死亡，游戏结束"
+        }
+        res = player.attribute.get("fatigue")
+        if res:
+            res.current = min(res.current + action['minutes']/60 * SLEEP_RECOVER, 100)
+        memory = {world.get_time().strftime("%Y-%m-%d %H:%M"):f"你睡了{action['minutes']}分钟"}
+        player.memory.append(json.dumps(memory,ensure_ascii=False))
+        return {
+            'action':"sleep",
+            'OK':True,
+            'MSG':f"你睡了{action['minutes']}分钟"
+        }
+
     
+    async def pick_up(self,player,action,world,dispatch,agent_id):
+        """采集
+        - 向前端发送采集动作
+        - 背包中增加物品
+        - 动作消耗任务属性
+        - 加入记忆
+        """
+        msg = await dispatch.action(agent_id=agent_id,cmd="pick_up",value=0.5)
+        if not msg or msg.get("status")!="ok":
+            return {"action": "pick_up", "OK": False, "MSG": "前端采集动画失败或超时"}
+        item_name = action['item']
+        if item_name not in world.locations['forest'].inner_things or world.location['forest'].inner_things[item_name].quantity <= 0:
+            return {
+                'action':"pick_up",
+                'item':item_name,
+                'OK':False,
+                'MSG':f"物品{item}不存在或不是可采集物品"
+            }
+        
+        item = world.item_data[item_name]
+        if not self._increase_qty(world,player.inventory,item,1,item.get("description"), item.get("function")):
+            return {
+                'action':"pick_up",
+                'item':item_name,
+                'OK':False,
+                'MSG':f"背包已满"
+            }
+        world.location['forest'].inner_things[item_name] -= 1
+        memory = {world.get_time().strftime("%Y-%m-%d %H:%M"):f"你采集了{item_name}"}
+        player.memory.append(json.dumps(memory,ensure_ascii=False))
+        return {
+            'action':"pick_up",
+            'item':item_name,
+            'OK':True,
+            'MSG':f"采集{item_name}成功"
+        }
+    
+
+    
+        
+            
+
     def _update_attribute(self,player,time_cost:float,attr_names:List[str] = ["hunger","thirst","fatigue"]) -> bool:
         for name in attr_names:
             attr = player.attribute.get(name)
@@ -666,6 +736,4 @@ class ActionMethod:
         unit_cap = self._unit_capacity(world, item)
         return container.capacity - unit_cap * qty >= 0
       
-    def sleep(self,player,action,world,dispatch,agent_id) :
-        """睡觉"""
-        pass
+    

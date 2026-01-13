@@ -76,14 +76,20 @@ async def agent_loop(ctx:AgentRuntimeCtx,stop_event:asyncio.Event,tick_sleep:flo
                     except Exception:
                         logger.exception("action step failed for %s", ctx.agent_id)
                         res = {"OK": False, "MSG": "action 执行异常"}
-                    ctx.last_result = res
+                    if res.get("OK") != True:
+                        # 仅测试，出问题直接终止
+                        print("动作执行出错：",action)
+                        print("返回结果：",res)
+                        raise Exception("测试中断")
+                        
+                    
                     ctx.actions_history.append(action)
                     if not res.get("OK",False):
                         if res.get("MSG","") == "玩家死亡，游戏结束":
                             logger.info(f"Agent {ctx.agent_id} 死亡")
                             stop_event.set()
-                        await asyncio.sleep(0.5)
                         break
+                    await asyncio.sleep(1.5)  # 动作间隔
                 step += 1
             if step >= max_step:
                 logger.error(f"Agent {ctx.agent_id} 达到最大步骤数 {max_step}，结束本轮行动")

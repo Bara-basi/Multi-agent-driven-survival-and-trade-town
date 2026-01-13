@@ -53,7 +53,7 @@ from typing import Dict,Any
 #                 if isinstance(l,Market):
 #                     result += format_commodity(list(l.commodity.values()))
 #                 else:
-#                     for i in l.inner_facilities.values():
+#                     for i in l.inner_things.values():
 #                         if isinstance(i,Item):
 #                             result += format_item([i])
 #                         elif isinstance(i,Container):
@@ -95,7 +95,7 @@ def to_location(name:str,raw:Dict[str,Any]) -> Location:
     return Location(
         name=name,
         description=raw.get("description",""),
-        inner_facilities=raw.get("inner_facilities",{})
+        inner_things=raw.get("inner_things",{})
     )
 
 def to_attr(name:str,current:float=100,decay_per_hour:float=0) -> Attribute:

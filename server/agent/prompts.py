@@ -15,7 +15,7 @@ async def format_prompt(player:Player,action_history:list,world:World) -> Dict[s
             return {}
         return value.model_dump() if hasattr(value, "model_dump") else {}
 
-    inner_home_facilities = world.players_home[player.id].inner_facilities
+    inner_home_facilities = world.players_home[player.id].inner_things
 
     prompts ={
         "system_rules": "你收邀参加了一个贸易游戏，你被带到一个封闭的小镇，小镇中只有一个集市、一片森林、一条小河和几个玩家的住所。目标：在不死亡的前提下尽快赚到 ¥10,000。只准输出 JSON（单个动作或动作数组），不得包含任何其他文字。不得输出解释或中间计算过程。",

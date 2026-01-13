@@ -26,14 +26,15 @@ class Location(BaseModel):
 
     name: str
     description: str
-    inner_facilities: Dict[str, Any] = Field(default_factory=dict)  # 内部设施
+    inner_things: Dict[str, Any] = Field(default_factory=dict)  # 内部设施
+    
 
 
 class Container(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
     name: str
-    capacity: float = Field(default=0)
+    # capacity: float = Field(default=0)
     items: Dict[str, "Item"] = Field(default_factory=dict)
     description: str = ""
 
@@ -42,7 +43,6 @@ class Item(BaseModel):
     """道具信息"""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
-
     name: str
     quantity: int
     description: str = ""
@@ -51,7 +51,6 @@ class Item(BaseModel):
 
 class Market(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
-
     description: str
     items: Dict[str, Dict[str, Any]] = Field(..., description="商品列表")
 
