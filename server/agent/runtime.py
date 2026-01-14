@@ -53,6 +53,14 @@ class AgentRuntimeCtx:
     summary:SummaryFn
     link:LinkFn
 
+def apply_daily_decay(player: Any) -> bool:
+    for attr in getattr(player, "attribute", {}).values():
+        decay_per_hour = getattr(attr, "decay_per_hour", 0)
+        attr.current -= decay_per_hour * 24
+        if attr.current < 0:
+            return False
+    return True
+
 async def agent_loop(ctx:AgentRuntimeCtx,stop_event:asyncio.Event,tick_sleep:float=0.1):
     """Agent 主循环"""
     today = ctx.world.get_time().day
@@ -99,6 +107,10 @@ async def agent_loop(ctx:AgentRuntimeCtx,stop_event:asyncio.Event,tick_sleep:flo
             day = ctx.world.get_time().day
             if today!= day:
                 today = day
+                if not apply_daily_decay(ctx.player):
+                    logger.info(f"Agent {ctx.agent_id} 因每日结算死亡")
+                    stop_event.set()
+                    break
                 async with ctx.world_lock:
                     ctx.world.update_market(ctx.world.locations['集市'])
             await asyncio.sleep(tick_sleep)

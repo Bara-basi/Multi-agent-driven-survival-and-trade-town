@@ -19,23 +19,23 @@ class World:
     def __post_init__(self) -> None:
         self.locations = {}
         self.players_home = {}
-        self.locations["河流"] = self._init_river()
+        # self.locations["河流"] = self._init_river()
         self.locations["集市"] = self._init_market()
-        self.locations["森林"] = self._init_forest()
+        # self.locations["森林"] = self._init_forest()
         self._init_players_home()
 
 
     # --- 初始化逻辑 ---
-    def _init_river(self) -> Location:
-        """初始化河流"""
-        return Location(
-            name="河流",
-            description=(
-                "一条长长的河流，如果你的背包中有钓鱼竿和鱼饵，可以在这钓鱼，"
-                "60%概率获得一条鱼，每次钓鱼消耗10分钟，操作为{type:fishing}，"
-                "无需其它参数；如果没有钓鱼竿仍进行操作，你将犯规并被淘汰。"
-            ),
-        )
+    # def _init_river(self) -> Location:
+    #     """初始化河流"""
+    #     return Location(
+    #         name="河流",
+    #         description=(
+    #             "一条长长的河流，如果你的背包中有钓鱼竿和鱼饵，可以在这钓鱼，"
+    #             "60%概率获得一条鱼，每次钓鱼消耗10分钟，操作为{type:fishing}，"
+    #             "无需其它参数；如果没有钓鱼竿仍进行操作，你将犯规并被淘汰。"
+    #         ),
+    #     )
 
     def _init_market(self) -> Market:
         """初始化市场（从 JSON 加载），并进行首轮价格更新"""
@@ -46,21 +46,21 @@ class World:
         self.update_market(market)
         return market
     
-    def _init_forest(self):
-        """初始化森林"""
-        description = "这里是一片茂密的森林，你可以在这里采集木材和野果或尝试狩猎。采集木材需要使用斧头，采集野果则不需要工具。采集木材每次消耗30分钟，采集野果每次消耗15分钟。采集操作格式为{type:collect,target:木材}、{type:collect,target:野果}，狩猎操作格式为{type:hunt}。"
-        forest = Location(name = "森林", description = description, inner_things = {"野果":1})
-        return forest
+    # def _init_forest(self):
+    #     """初始化森林"""
+    #     description = "这里是一片茂密的森林，你可以在这里采集木材和野果或尝试狩猎。采集木材需要使用斧头，采集野果则不需要工具。采集木材每次消耗30分钟，采集野果每次消耗15分钟。采集操作格式为{type:collect,target:木材}、{type:collect,target:野果}，狩猎操作格式为{type:hunt}。"
+    #     forest = Location(name = "森林", description = description, inner_things = {"野果":1})
+    #     return forest
         
     def _init_players_home(self):
         """初始化玩家的家"""
         for i in range(len(self.players)):
             name = f"玩家{i+1}的家"
             description = f"这是玩家{i+1}的家,只有他才可以进入。"
-            locker = Container(name="储物柜",capacity=100,description="你可以在这里存放物品,使用的指令格式为{type:store,item:鱼,qty:1,container:储物柜}")
-            bed = Item(name="床",quantity=-1,description="你可以在此睡觉，回复疲劳值(+20疲劳值/小时),使用的指令为{type:sleep,minutes:30},单位分钟") 
+            # locker = Container(name="储物柜",capacity=100,description="你可以在这里存放物品,使用的指令格式为{type:store,item:鱼,qty:1,container:储物柜}")
+            bed = Item(name="床",quantity=-1,description="你可以在此睡觉，回复固定疲劳值(+20疲劳值/次),使用的指令为{type:sleep,minutes:30},单位分钟") 
             pot = Item(name="锅",quantity=-1,description="你可以消耗燃料罐来烹饪,花费时间由烹饪的物品决定,使用的指令格式为{type:cook,input:鱼,tool:锅}")
-            inner_home_facilities = {"床":bed,"锅":pot,"储物柜":locker}
+            inner_home_facilities = {"床":bed,"锅":pot}
             self.players_home[i+1] = Location(
                 name = name,
                 description = description,
@@ -90,7 +90,7 @@ class World:
    
     """游戏时间处理"""
     def get_time(self) -> datetime:
-        """实际时间1分钟等于游戏时间1小时"""
+        """实际时间3分钟等于游戏时间1天"""
         cur_time = self.time +(datetime.now() - self.time) * TIME_RATIO
         return cur_time 
     def get_format_time(self) -> str:

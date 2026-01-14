@@ -73,8 +73,12 @@ class Wait(BaseModel):
     seconds: float
 
 
+class Finish(BaseModel):
+    type: Literal["finish"]
+
+
 Action = Annotated[
-    Union[Move, Consume, Sleep, Cook, Fishing, Trade, Store, Retrieve, Talk, Wait],
+    Union[Move, Consume, Sleep, Cook, Fishing, Trade, Store, Retrieve, Talk, Wait, Finish],
     Field(discriminator="type"),
 ]
 
@@ -83,4 +87,3 @@ class ActionList(RootModel[Union[Action, List[Action]]]):
     """允许返回单个动作或动作列表"""
 
     pass
-

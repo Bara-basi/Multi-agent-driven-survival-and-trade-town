@@ -2,7 +2,6 @@ import asyncio
 import json
 from agent.player import Player
 from agent.agent_config import PLAYER_INFO
-from agent.prompts import format_prompt
 from agent.actions import ActionMethod
 from agent.world import World
 from server import AgentServer

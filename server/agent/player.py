@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List,Dict,Any
 from .models.schema import Attribute, Container
-from .agent_config import INVENTORY_SIZE,DECAY_PER_HOUR
+from .agent_config import DECAY_PER_HOUR
 from .utils import to_attr
 from .agent import Agent
 from dataclasses import dataclass, field
@@ -22,9 +22,7 @@ class Player:
     # 去掉三个属性，合并为attribute属性
     attribute: Dict[str, Attribute] = field(default_factory=dict)
 
-    inventory: Container = field(
-        default_factory=lambda: Container(name="背包", capacity=INVENTORY_SIZE)
-    )
+    inventory: Container = field(default_factory=lambda: Container(name="背包"))
     home: str = "家"
     # 0=已知地区, 1=可访问, -1=不可访问
     accessible: Dict[str, int] = field(
@@ -41,7 +39,7 @@ class Player:
         player_num = 1,
     ) -> Player:
         """从原始数据构造玩家状态"""
-        accessible_dict = {"集市":1,"森林":1,"河流":1}
+        accessible_dict = {"集市":1}
         for location in locations or []:
             accessible_dict[location] = 1
         for i in range(1, player_num + 1):
