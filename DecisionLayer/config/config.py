@@ -1,5 +1,8 @@
 ﻿"""全局常量配置。"""
 
+import os
+
+
 # 集市配置
 DEFAULT_MARKET_STOCK_INCREASE = 10
 KAPPA = {
@@ -38,6 +41,9 @@ RANDOM_EVENT_PORB = 0.1
 USE_ACION_LAYER = True
 TICK_INTERVAL_SECONDS = 1.0
 ACTION_LAYER_CONNECT_POLL_SECONDS = 1.0
+
+# 调试日志配置
+ENABLE_DEBUG_PROMPT_LOG = False
 
 """运行时参数配置。"""
 

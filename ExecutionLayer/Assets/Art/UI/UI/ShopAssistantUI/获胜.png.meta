@@ -1,0 +1,245 @@
+fileFormatVersion: 2
+guid: e0b708b3dbb47934e8e3b8e5bdd25ce9
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -930460898135908020
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_0"
+  - first:
+      213: 1424314287374665645
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_1"
+  - first:
+      213: 1217277260532464537
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_2"
+  - first:
+      213: 4299744806118558838
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_3"
+  - first:
+      213: 3614732421134695363
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_4"
+  - first:
+      213: -1224500344008331446
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_5"
+  - first:
+      213: -4157211187343207471
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_6"
+  - first:
+      213: -7399533166412222717
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_7"
+  - first:
+      213: -2313785134615718867
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_8"
+  - first:
+      213: 8728045468163457523
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_9"
+  - first:
+      213: -6884203931538228731
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_10"
+  - first:
+      213: 1516206203648547656
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_11"
+  - first:
+      213: 663166769927420034
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_12"
+  - first:
+      213: 5623075340608472568
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_13"
+  - first:
+      213: -7264386107412057691
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_14"
+  - first:
+      213: -6365269452696062856
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_15"
+  - first:
+      213: -8170705997915636867
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_16"
+  - first:
+      213: -5819078994367461059
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_17"
+  - first:
+      213: 6843464169265970760
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_18"
+  - first:
+      213: 3783762519708916668
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_19"
+  - first:
+      213: 7531013918561582052
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_20"
+  - first:
+      213: -946501316500020278
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_21"
+  - first:
+      213: -4806255265003464379
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_22"
+  - first:
+      213: -1532114084807372668
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_23"
+  - first:
+      213: -3508531236900386936
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_24"
+  - first:
+      213: -7557837735756905191
+    second: "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_25"
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: "\u5927\u83B7\u5168\u80DC"
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1536
+        height: 1024
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 155350e92b520a84f8aed26f7048dc18
+      internalID: 327926907
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: ba302f0f4704ef34fa4844aea68833ba
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_0": -930460898135908020
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_1": 1424314287374665645
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_10": -6884203931538228731
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_11": 1516206203648547656
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_12": 663166769927420034
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_13": 5623075340608472568
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_14": -7264386107412057691
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_15": -6365269452696062856
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_16": -8170705997915636867
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_17": -5819078994367461059
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_18": 6843464169265970760
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_19": 3783762519708916668
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_2": 1217277260532464537
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_20": 7531013918561582052
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_21": -946501316500020278
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_22": -4806255265003464379
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_23": -1532114084807372668
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_24": -3508531236900386936
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_25": -7557837735756905191
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_3": 4299744806118558838
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_4": 3614732421134695363
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_5": -1224500344008331446
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_6": -4157211187343207471
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_7": -7399533166412222717
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_8": -2313785134615718867
+      "ChatGPT Image 2026\u5E745\u67084\u65E5 00_06_17_9": 8728045468163457523
+      "\u5927\u83B7\u5168\u80DC": 327926907
+      "\u5927\u83B7\u83B7\u80DC": 327926907
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

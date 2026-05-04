@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 
 from config.config import (
     ATTR_CN_MAP,
+    ENABLE_DEBUG_PROMPT_LOG,
     FATIGUE_DECAY_PER_ACTION,
     FATIGUE_DECAY_PER_DAY,
     HUNGER_DECAY_PER_DAY,
@@ -153,6 +154,9 @@ class PromptBuilder:
         return actor_id or "unknown"
 
     def _write_prompt_log(self, packet: PromptPacket) -> None:
+        if not ENABLE_DEBUG_PROMPT_LOG:
+            return
+
         base_dir = "debug_log/prompt"
         self._mkdir(base_dir)
         actor_suffix = self._actor_suffix(packet.actor_id)

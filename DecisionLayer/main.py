@@ -192,6 +192,35 @@ def _bootstrap_world_state(world: WorldState) -> None:
                 logging.exception("market init failed for location: %s", getattr(location, "id", "<unknown>"))
 
 
+def _build_runtime_components(world: WorldState, actor_states: Dict[ActorId, object], catalog) -> tuple[Dict[ActorId, Agent], AgentRuntime]:
+    executor = ActionExecutor(
+        world=world,
+        dispatch=_dispatch,
+        catalog=catalog,
+        logger=logging.getLogger("action"),
+    )
+
+    shared_llm = LLM(model_name=ACT_MODEL_NAME)
+    agents: Dict[ActorId, Agent] = {}
+    for actor_id, actor in actor_states.items():
+        if actor_id == HUMAN_SHOP_ASSISTANT_ACTOR_ID:
+            continue
+        agents[actor_id] = Agent(
+            id=actor_id,
+            model=shared_llm,
+            actor=actor,
+            prompt_builder=PromptBuilder(),
+        )
+
+    runtime = AgentRuntime(
+        world=world,
+        agents=agents,
+        executor=executor,
+        logger=logging.getLogger("runtime"),
+    )
+    return agents, runtime
+
+
 async def run(on_update=None) -> None:
     catalog = load_catalog()
     actor_states, location_states = build_state(catalog)
@@ -227,32 +256,13 @@ async def run(on_update=None) -> None:
     broadcast_agent_information = getattr(client, "broadcast_agent_information", None)
     if callable(broadcast_agent_information):
         await broadcast_agent_information()
+
+    runtime_init_task = asyncio.create_task(
+        asyncio.to_thread(_build_runtime_components, world, actor_states, catalog),
+        name="runtime-init",
+    )
     await world.run_player_market_phase(advance_prices=False)
-
-    executor = ActionExecutor(
-        world=world,
-        dispatch=_dispatch,
-        catalog=catalog,
-        logger=logging.getLogger("action"),
-    )
-
-    agents: Dict[ActorId, Agent] = {}
-    for actor_id, actor in actor_states.items():
-        if actor_id == HUMAN_SHOP_ASSISTANT_ACTOR_ID:
-            continue
-        agents[actor_id] = Agent(
-            id=actor_id,
-            model=LLM(model_name=ACT_MODEL_NAME),
-            actor=actor,
-            prompt_builder=PromptBuilder(),
-        )
-
-    runtime = AgentRuntime(
-        world=world,
-        agents=agents,
-        executor=executor,
-        logger=logging.getLogger("runtime"),
-    )
+    agents, runtime = await runtime_init_task
 
     if on_update:
         for actor_id in agents.keys():
