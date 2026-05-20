@@ -45,6 +45,10 @@ class NoopActionLayerClient:
         _ = actor_id, today_money_delta
         return True
 
+    async def game_end(self, result: str) -> bool:
+        _ = result
+        return True
+
     async def send_information(
         self,
         target: str,
@@ -90,6 +94,12 @@ class NoopActionLayerClient:
         return None
 
     def clear_stock_updates(self) -> None:
+        return None
+
+    async def wait_reset_request(self) -> Dict[str, Any] | None:
+        return None
+
+    def clear_reset_requests(self) -> None:
         return None
 
     async def consume(self, actor_id, item, value) -> bool:

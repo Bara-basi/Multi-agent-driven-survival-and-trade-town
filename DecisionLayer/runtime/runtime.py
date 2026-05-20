@@ -84,6 +84,12 @@ class AgentRuntime:
         self.logger = logger
         self._states: Dict[Any, RuntimeActorState] = {}
 
+    def reset(self, *, world: WorldState, agents: Dict[ActorId, Agent], executor: ActionExecutor) -> None:
+        self.world = world
+        self.agents = agents
+        self.executor = executor
+        self._states.clear()
+
     @staticmethod
     def _safe_int(v: Any, default: int = 1) -> int:
         try:
@@ -461,11 +467,7 @@ class AgentRuntime:
 
         # 每回合开始时，先运行决策点代理，再进入 plan。
         if st.last_decision_day != self.world.day:
-            try:
-                llm_payload = await agent.make_desicion(obs)
-            except Exception as e:
-                logger.exception("decision-point step failed for actor %s: %s", actor_id, e)
-                llm_payload = [{"decision": "skip", "item": None, "reason": "runtime_exception"}]
+            llm_payload = await agent.make_desicion(obs)
 
             # 真正执行决策点效果（本步骤才会扣点/加钱/锁价/生成情报）。
             actor = self.world.actor(actor_id)
@@ -498,17 +500,14 @@ class AgentRuntime:
             obs = self._obs(actor_id)
 
         if self._should_plan(st):
-            try:
-                await agent.plan(obs)
-                st.plan_id += 1
-                st.plan = agent.prompt_builder.plan_txt
-                st.last_plan_step = st.step
-                agent.prompt_builder.error_log = ""
-                actor = self.world.actor(actor_id)
-                if hasattr(actor, "memory") and hasattr(actor.memory, "start_plan"):
-                    actor.memory.start_plan(plan_id=st.plan_id, plan_text=st.plan)
-            except Exception as e:
-                logger.exception("plan failed for actor %s: %s", actor_id, e)
+            await agent.plan(obs)
+            st.plan_id += 1
+            st.plan = agent.prompt_builder.plan_txt
+            st.last_plan_step = st.step
+            agent.prompt_builder.error_log = ""
+            actor = self.world.actor(actor_id)
+            if hasattr(actor, "memory") and hasattr(actor.memory, "start_plan"):
+                actor.memory.start_plan(plan_id=st.plan_id, plan_text=st.plan)
 
         proposal: Optional[Dict[str, Any]] = None
         res: Optional[ActionResult] = None
@@ -516,18 +515,9 @@ class AgentRuntime:
         max_try = MAX_ACTION_RETRIES + MAX_REPLAN_AFTER_ACTION_ERROR + 1
         for _ in range(max_try):
             obs = self._obs(actor_id)
-            raw_proposal: Any = None
-            try:
-                raw_proposal = await agent.act(obs)
-                proposal = self._coerce_proposal(raw_proposal)
-            except Exception as e:
-                last_err = ActionResult(status=False, code="CRASH", message=f"动作生成失败: {e}")
-                proposal = None
-                try:
-                    await self._force_replan_after_error(actor_id, st, reason=last_err.message)
-                except Exception as plan_e:
-                    logger.exception("replan after act-generate error failed for actor %s: %s", actor_id, plan_e)
-                continue
+            raw_proposal: Any = await agent.act(obs)
+            proposal = self._coerce_proposal(raw_proposal)
+
 
             if proposal is None:
                 raw_preview = ""
@@ -540,10 +530,7 @@ class AgentRuntime:
                     code="NO_ACTION",
                     message=f"无合法动作输出: {raw_preview}",
                 )
-                try:
-                    await self._force_replan_after_error(actor_id, st, reason=last_err.message)
-                except Exception as plan_e:
-                    logger.exception("replan after no-action failed for actor %s: %s", actor_id, plan_e)
+                await self._force_replan_after_error(actor_id, st, reason=last_err.message)
                 continue
 
             if str(proposal.get("type") or proposal.get("name") or "").strip() == "finish":
@@ -552,40 +539,28 @@ class AgentRuntime:
                     code="INVALID_ACTION",
                     message="finish 动作已废弃，请改为可执行动作或 wait。",
                 )
-                try:
-                    await self._force_replan_after_error(actor_id, st, reason=last_err.message)
-                except Exception as plan_e:
-                    logger.exception("replan after finish action failed for actor %s: %s", actor_id, plan_e)
+                await self._force_replan_after_error(actor_id, st, reason=last_err.message)
                 continue
 
             is_loop, loop_msg = self._is_repeat_loop(st, proposal, obs)
             if is_loop:
                 agent.prompt_builder.error_log = loop_msg
                 last_err = ActionResult(status=False, code="LOOP_GUARD", message=loop_msg)
-                try:
-                    await self._force_replan_after_error(actor_id, st, reason=loop_msg)
-                except Exception as plan_e:
-                    logger.exception("replan after loop-guard failed for actor %s: %s", actor_id, plan_e)
+                await self._force_replan_after_error(actor_id, st, reason=loop_msg)
                 continue
 
             trade_loop, trade_msg = self._is_trade_churn(st, proposal)
             if trade_loop:
                 agent.prompt_builder.error_log = trade_msg
                 last_err = ActionResult(status=False, code="TRADE_CHURN_GUARD", message=trade_msg)
-                try:
-                    await self._force_replan_after_error(actor_id, st, reason=trade_msg)
-                except Exception as plan_e:
-                    logger.exception("replan after trade-churn failed for actor %s: %s", actor_id, plan_e)
+                await self._force_replan_after_error(actor_id, st, reason=trade_msg)
                 continue
 
             split_loop, split_msg = self._is_split_action(st, proposal, obs)
             if split_loop:
                 agent.prompt_builder.error_log = split_msg
                 last_err = ActionResult(status=False, code="SPLIT_ACTION_GUARD", message=split_msg)
-                try:
-                    await self._force_replan_after_error(actor_id, st, reason=split_msg)
-                except Exception as plan_e:
-                    logger.exception("replan after split-action failed for actor %s: %s", actor_id, plan_e)
+                await self._force_replan_after_error(actor_id, st, reason=split_msg)
                 continue
 
             logger.info("proposal: %s", proposal)
@@ -600,10 +575,7 @@ class AgentRuntime:
             # 执行失败时，把失败原因作为下一次 act 的纠错反馈。
             agent.prompt_builder.error_log = self._action_error_hint(res)
             last_err = res
-            try:
-                await self._force_replan_after_error(actor_id, st, reason=agent.prompt_builder.error_log)
-            except Exception as plan_e:
-                logger.exception("replan after execute error failed for actor %s: %s", actor_id, plan_e)
+            await self._force_replan_after_error(actor_id, st, reason=agent.prompt_builder.error_log)
 
         if res is None:
             res = last_err or ActionResult(status=False, code="NO_ACTION", message="无合法动作输出")
@@ -627,11 +599,8 @@ class AgentRuntime:
         st.last_result = res
 
         if self._should_reflect(st):
-            try:
-                await agent.reflect(obs)
-                st.last_reflect_step = st.step
-            except Exception as e:
-                logger.exception("reflect failed for actor %s: %s", actor_id, e)
+            await agent.reflect(obs)
+            st.last_reflect_step = st.step
 
         return res
 
@@ -643,16 +612,13 @@ class AgentRuntime:
     ) -> None:
         # 单角色无限 tick 循环；异常只记录日志，不中断整体仿真。
         while True:
-            try:
-                actor_state = self.world.actor(actor_id)
-                if not bool(getattr(actor_state, "running", True)):
-                    await asyncio.sleep(interval_seconds)
-                    continue
-                res = await self.tick_actor(actor_id)
-                if on_tick:
-                    on_tick(actor_id, res)
-            except Exception:
-                logger.exception("actor loop crashed: %s", actor_id)
+            actor_state = self.world.actor(actor_id)
+            if not bool(getattr(actor_state, "running", True)):
+                await asyncio.sleep(interval_seconds)
+                continue
+            res = await self.tick_actor(actor_id)
+            if on_tick:
+                on_tick(actor_id, res)
             await asyncio.sleep(interval_seconds)
 
     async def run(

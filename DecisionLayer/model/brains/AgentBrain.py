@@ -16,7 +16,11 @@ class Agent:
 
     async def plan(self, obs: Any) -> None:
         prompt = self.prompt_builder.build_plan(obs)
-        plan = await self.model.agenerate(model=PLAN_MODEL_NAME, prompt=prompt, resoning="low")
+        plan = await self.model.agenerate(
+            model=PLAN_MODEL_NAME,
+            prompt=prompt,
+            thinking="disabled",
+        )
         self.prompt_builder.plan_txt = plan
 
     async def act(self, obs: Any) -> Dict | List:
@@ -25,13 +29,17 @@ class Agent:
             model=ACT_MODEL_NAME,
             prompt=prompt,
             restrict="json",
-            resoning="minimal",
+            thinking="disabled",
         )
         return self._normalize_action_output(action)
 
     async def reflect(self, obs: Any) -> None:
         prompt = self.prompt_builder.build_reflect(obs)
-        reflect = await self.model.agenerate(model=REFLECT_MODEL_NAME, prompt=prompt, resoning="minimal")
+        reflect = await self.model.agenerate(
+            model=REFLECT_MODEL_NAME,
+            prompt=prompt,
+            thinking="disabled",
+        )
         self.prompt_builder.reflect_txt = reflect
 
     async def make_desicion(self, obs: Any) -> List[Dict]:
@@ -40,13 +48,13 @@ class Agent:
             model=PLAN_MODEL_NAME,
             prompt=prompt,
             restrict="json",
-            resoning="low",
+            thinking="disabled",
         )
         if isinstance(decision, list):
             return [d for d in decision if isinstance(d, dict)]
         if isinstance(decision, dict):
             return [decision]
-        return [{"decision": "skip", "item": None, "reason": "invalid_json_fallback"}]
+        raise TypeError(f"decision-point model returned {type(decision).__name__}, expected dict or list")
 
     @staticmethod
     def _normalize_action_output(raw: Any) -> Dict:

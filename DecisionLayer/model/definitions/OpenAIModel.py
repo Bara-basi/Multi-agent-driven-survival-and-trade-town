@@ -1,129 +1,169 @@
 from __future__ import annotations
 
-"""OpenAI Chat Completions 的轻封装，含无密钥回退模式。
-- 对 gpt-5*：使用 Responses API 来支持 reasoning.effort=minimal
-- 其它模型：保持使用 Chat Completions API
+"""SiliconFlow/OpenAI-compatible Chat Completions wrapper.
+
+The project no longer uses OpenAI Responses API.  All stages now call the
+OpenAI-compatible Chat Completions endpoint exposed by SiliconFlow.
 """
 
+import json
 import os
-import logging
 from typing import Any, Optional
 
-
 try:
-    from openai import OpenAI, AsyncOpenAI
-except Exception: 
-    OpenAI = None
+    from openai import AsyncOpenAI, OpenAI
+except Exception:
     AsyncOpenAI = None
+    OpenAI = None
+
+
+DEFAULT_BASE_URL = "https://api.siliconflow.cn/v1"
+DEFAULT_MODEL = "Pro/moonshotai/Kimi-K2.6"
+DEFAULT_TEMPERATURE = 0.7
+DEFAULT_TOP_P = 0.9
 
 
 class LLM:
     def __init__(
         self,
-        model_name: str = "gpt-5-mini-2025-08-07",
+        model_name: str = DEFAULT_MODEL,
         api_key: Optional[str] = None,
-        reasoning_effort: str = "minimal",  # gpt-5-mini 支持 minimal/low/medium/high（你已验证 none 不支持）
+        base_url: Optional[str] = None,
+        reasoning_effort: str = "low",
+        verbosity: str = "medium",
+        temperature: float = DEFAULT_TEMPERATURE,
+        top_p: float = DEFAULT_TOP_P,
     ):
-        self._logger = logging.getLogger(__name__)
-        self.model_name = model_name
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.model_name = model_name or DEFAULT_MODEL
+        self.api_key = (
+            api_key
+            or os.getenv("SILICONFLOW_API_KEY")
+            or os.getenv("SILICONFLOW_KEY")
+            or os.getenv("API_KEY")
+        )
+        self.base_url = base_url or os.getenv("SILICONFLOW_BASE_URL") or DEFAULT_BASE_URL
         self.reasoning_effort = reasoning_effort
+        self.verbosity = verbosity
+        self.temperature = temperature
+        self.top_p = top_p
         self.client = None
         self.async_client = None
 
-        if OpenAI is not None and self.api_key:
-            self.client = OpenAI(api_key=self.api_key)
-            if AsyncOpenAI is not None:
-                self.async_client = AsyncOpenAI(api_key=self.api_key)
-        else:
-            self._logger.warning(
-                "LLM fallback mode enabled (openai package or OPENAI_API_KEY is missing)."
+        if OpenAI is None or AsyncOpenAI is None:
+            raise RuntimeError(
+                "openai package is required for remote LLM calls. "
+                "Install it in the Python environment that runs DecisionLayer."
             )
 
-    def _fallback_generate(self, restrict: Optional[str] = None) -> Any:
-        if restrict == "json":
-            return {"type": "wait"}
-        return "fallback response"
+        if not self.api_key:
+            raise RuntimeError(
+                "Missing SiliconFlow API key. Set SILICONFLOW_API_KEY, "
+                "SILICONFLOW_KEY, API_KEY, or pass api_key=... when constructing LLM."
+            )
+
+        self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+        self.async_client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
     @staticmethod
-    def _is_gpt5(model: str) -> bool:
-        return bool(model) and model.startswith("gpt-5") 
+    def _json_loads(content: str) -> Any:
+        if not content:
+            raise ValueError("model returned empty JSON content")
+        return json.loads(content)
 
-    def generate(self, prompt: str, restrict: Optional[str] = None) -> Any:
-        if self.client is None:
-            return self._fallback_generate(restrict=restrict)
-
-        model = self.model_name
-
-        # —— gpt-5*：用 Responses API（reasoning 参数在这里是官方支持的）——
-        if self._is_gpt5(model) and hasattr(self.client, "responses"):
-            kwargs = {
-                "model": model,
-                "input": [{"role": "user", "content": prompt}],
-                "reasoning": {"effort": self.reasoning_effort},
-            }
-            if restrict == "json":
-                # Responses API 的 JSON mode：通过 text.format 请求 JSON object
-                kwargs["text"] = {"format": {"type": "json_object"}}
-
-            resp = self.client.responses.create(**kwargs)
-            content = getattr(resp, "output_text", None) or ""
-            if restrict == "json":
-                import json
-                return json.loads(content)
-            return content
-
-        # —— 其它模型：保持 Chat Completions（不传 reasoning，避免你的 TypeError）——
-        kwargs = {
-            "model": model,
+    def _build_chat_kwargs(
+        self,
+        *,
+        model: Optional[str],
+        prompt: str,
+        restrict: Optional[str],
+        reasoning_effort: Optional[str],
+        thinking: Optional[str],
+        stream: bool,
+        seed: Optional[int],
+    ) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {
+            "model": model or self.model_name,
             "messages": [{"role": "user", "content": prompt}],
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "verbosity": self.verbosity,
+            "stream": stream,
         }
+
+        if seed is not None:
+            kwargs["seed"] = seed
+
         if restrict == "json":
             kwargs["response_format"] = {"type": "json_object"}
 
+        if thinking == "disabled":
+            # OpenAI SDK sends extra_body fields as top-level request body keys.
+            # Kimi K2.6 supports this API-level switch for non-thinking mode.
+            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+        else:
+            kwargs["reasoning_effort"] = reasoning_effort or self.reasoning_effort
+
+        return kwargs
+
+    def generate(
+        self,
+        prompt: str,
+        restrict: Optional[str] = None,
+        *,
+        model: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
+        thinking: Optional[str] = None,
+        stream: bool = False,
+        seed: Optional[int] = None,
+    ) -> Any:
+        if self.client is None:
+            raise RuntimeError("LLM client is not initialized")
+
+        kwargs = self._build_chat_kwargs(
+            model=model,
+            prompt=prompt,
+            restrict=restrict,
+            reasoning_effort=reasoning_effort,
+            thinking=thinking,
+            stream=stream,
+            seed=seed,
+        )
         resp = self.client.chat.completions.create(**kwargs)
         content = resp.choices[0].message.content
 
         if restrict == "json":
-            import json
-            return json.loads(content)
+            return self._json_loads(content)
         return content
 
-    async def agenerate(self, model: str, prompt: str, restrict: Optional[str] = None,resoning: Optional[str] = None) -> Any:
+    async def agenerate(
+        self,
+        model: Optional[str],
+        prompt: str,
+        restrict: Optional[str] = None,
+        resoning: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
+        thinking: Optional[str] = None,
+        stream: bool = False,
+        seed: Optional[int] = None,
+    ) -> Any:
+        # Keep the old misspelled parameter working because current callers use it.
+        effort = reasoning_effort or resoning or self.reasoning_effort
+
         if self.async_client is None:
-            return self.generate(prompt, restrict=restrict)
+            raise RuntimeError("Async LLM client is not initialized")
 
-        use_model = model if model else self.model_name
-
-        # —— gpt-5*：用 Async Responses API —— 
-        if self._is_gpt5(use_model) and hasattr(self.async_client, "responses"):
-            kwargs = {
-                "model": use_model,
-                "input": [{"role": "user", "content": prompt}],
-                "reasoning": {"effort": resoning or self.reasoning_effort},
-            }
-            if restrict == "json":
-                kwargs["text"] = {"format": {"type": "json_object"}}
-
-            resp = await self.async_client.responses.create(**kwargs)
-            content = getattr(resp, "output_text", None) or ""
-            if restrict == "json":
-                import json
-                return json.loads(content)
-            return content
-
-        # —— 其它模型：Async Chat Completions —— 
-        kwargs = {
-            "model": use_model,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-        if restrict == "json":
-            kwargs["response_format"] = {"type": "json_object"}
-
+        kwargs = self._build_chat_kwargs(
+            model=model,
+            prompt=prompt,
+            restrict=restrict,
+            reasoning_effort=effort,
+            thinking=thinking,
+            stream=stream,
+            seed=seed,
+        )
         resp = await self.async_client.chat.completions.create(**kwargs)
         content = resp.choices[0].message.content
 
         if restrict == "json":
-            import json
-            return json.loads(content)
+            return self._json_loads(content)
         return content

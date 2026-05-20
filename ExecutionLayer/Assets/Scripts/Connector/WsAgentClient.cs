@@ -75,6 +75,7 @@ public class WsAgentClient : MonoBehaviour
     private static string sharedServerUrl;
     private static WsAgentClient reconnectHost;
     private static Coroutine sharedReconnectCoroutine;
+    private const string PendingResetPlayerPrefsKey = "AITown.PendingReset";
 
     struct AnimationRequest
     {
@@ -202,6 +203,39 @@ public class WsAgentClient : MonoBehaviour
             agent_id = agentId,
             cap = new[] { "waiting" }
         });
+        await TrySubmitPendingResetForSelf();
+    }
+
+    async Task TrySubmitPendingResetForSelf()
+    {
+        if (PlayerPrefs.GetInt(PendingResetPlayerPrefsKey, 0) != 1)
+        {
+            return;
+        }
+        if (!string.Equals(agentId, "Agent-X", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        const int maxWaitFrames = 180;
+        for (int i = 0; i < maxWaitFrames && FindObjectOfType<ShopAssistantDisplayUI>() == null; i++)
+        {
+            await Task.Delay(50);
+        }
+
+        PlayerPrefs.DeleteKey(PendingResetPlayerPrefsKey);
+        PlayerPrefs.Save();
+        await SendJsonShared(new OutMsg
+        {
+            type = "reset",
+            agent_id = agentId
+        });
+    }
+
+    public static void RequestGameResetAfterSceneReload()
+    {
+        PlayerPrefs.SetInt(PendingResetPlayerPrefsKey, 1);
+        PlayerPrefs.Save();
     }
 
     static bool IsSharedSocketOpen_NoLock()
@@ -387,6 +421,7 @@ public class WsAgentClient : MonoBehaviour
         switch (msg.type)
         {
             case "hello_ack":
+            case "reset_ack":
                 return true;
             case "ping":
                 _ = SendJsonShared(new OutMsg { type = "pong" });
@@ -520,6 +555,45 @@ public class WsAgentClient : MonoBehaviour
             return;
         }
 
+        if (msg.type == "info" && msg.cmd == "game_end")
+        {
+            _ = SendJsonShared(new OutMsg
+            {
+                type = "ack",
+                cmd = msg.cmd,
+                agent_id = msg.agent_id,
+                action_id = msg.action_id
+            });
+
+            mainThreadQueue.Enqueue(() =>
+            {
+                var info = ParseGameEndInfo(msg.info);
+                bool victory = string.Equals(msg.target, "victory", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(info.result, "victory", StringComparison.OrdinalIgnoreCase)
+                    || info.isVictory;
+
+                if (victory)
+                {
+                    GameEndVictoryUI.ShowVictory(msg.info);
+                }
+                else
+                {
+                    GameEndFailureUI.ShowFailure(info.failureReason, msg.info);
+                }
+
+                _ = SendJsonShared(new OutMsg
+                {
+                    type = "complete",
+                    cmd = msg.cmd,
+                    agent_id = msg.agent_id,
+                    action_id = msg.action_id,
+                    status = "ok"
+                });
+            });
+
+            return;
+        }
+
         if (msg.type == "command" && (msg.cmd == "round_start" || msg.cmd == "round_end"))
         {
             _ = SendJsonShared(new OutMsg
@@ -532,7 +606,7 @@ public class WsAgentClient : MonoBehaviour
 
             mainThreadQueue.Enqueue(() =>
             {
-                var ui = FindObjectOfType<ShopAssistantDisplayUI>();
+                var ui = ShopAssistantDisplayUI.EnsureInstance();
                 if (ui == null)
                 {
                     _ = SendJsonShared(new OutMsg
@@ -676,6 +750,24 @@ public class WsAgentClient : MonoBehaviour
             status = "error",
             error = "unknown command"
         });
+    }
+
+    static GameEndInfo ParseGameEndInfo(string infoJson)
+    {
+        if (string.IsNullOrWhiteSpace(infoJson))
+        {
+            return new GameEndInfo();
+        }
+
+        try
+        {
+            return JsonUtility.FromJson<GameEndInfo>(infoJson) ?? new GameEndInfo();
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("Game end info parse failed: " + e.Message + "\nraw: " + infoJson);
+            return new GameEndInfo();
+        }
     }
 
     bool EnsureNavigatorForCommand(WSMsg msg)
@@ -1054,6 +1146,14 @@ public class WsAgentClient : MonoBehaviour
         public string type;
         public string agent_id;
         public string info;
+    }
+
+    [Serializable]
+    class GameEndInfo
+    {
+        public string result;
+        public bool isVictory;
+        public string failureReason;
     }
 
     List<string> FindPath(string start, string goal, Dictionary<string, List<string>> graph)

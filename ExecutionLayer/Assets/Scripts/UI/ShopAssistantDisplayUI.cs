@@ -259,6 +259,18 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
         root.AddComponent<ShopAssistantDisplayUI>();
     }
 
+    public static ShopAssistantDisplayUI EnsureInstance()
+    {
+        var ui = FindObjectOfType<ShopAssistantDisplayUI>();
+        if (ui != null)
+        {
+            return ui;
+        }
+
+        var root = new GameObject("UI_ShopAssistant_Display6");
+        return root.AddComponent<ShopAssistantDisplayUI>();
+    }
+
     private void Awake()
     {
         uiFont = ResolveUiFont();
@@ -612,6 +624,9 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
 
     private void Update()
     {
+        GameEndVictoryUI.HandleDebugInput();
+        GameEndFailureUI.HandleDebugInput();
+
         var keyboard = Keyboard.current;
         if (keyboard != null && keyboard[roundStartDebugKey].wasPressedThisFrame)
         {

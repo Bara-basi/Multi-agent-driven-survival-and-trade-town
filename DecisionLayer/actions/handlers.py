@@ -86,6 +86,42 @@ async def _broadcast_message(ctx: Any, source: str, message: str) -> None:
         await result
 
 
+def _resolve_game_end_result(ctx: Any) -> str | None:
+    world = getattr(ctx, "world", None)
+    if world is None:
+        return None
+    if bool(getattr(world, "game_finished", False)):
+        return str(getattr(world, "game_result", "") or "") or None
+    if world.is_game_over():
+        return "failure"
+    if world.is_victory():
+        return "victory"
+    return None
+
+
+async def _notify_game_end_if_needed(ctx: Any) -> str | None:
+    result = _resolve_game_end_result(ctx)
+    if result is None:
+        return None
+
+    world = ctx.world
+    finish_game = getattr(world, "finish_game", None)
+    if callable(finish_game):
+        finish_game(result)
+
+    client = getattr(world, "client", None)
+    game_end = getattr(client, "game_end", None) if client is not None else None
+    if callable(game_end):
+        response = game_end(result)
+        if inspect.isawaitable(response):
+            response = await response
+        if response is False:
+            logger = getattr(ctx, "logger", None)
+            if logger is not None:
+                logger.warning("Game end WebSocket message was not acknowledged as ok: %s", result)
+    return result
+
+
 def _change_attr(actor: Any, attr_name: str, delta: float) -> None:
     attr = (getattr(actor, "attrs", None) or {}).get(attr_name)
     if attr is None:
@@ -206,7 +242,10 @@ async def handle_wait(ctx, act) -> ActionResult:
         return ActionResult(status=False, code="INVALID", message=f"Unity 动画出错: 等待")
     actor.location = actor.home
     actor.running = False
-    await ctx.world.update_day()
+    day_advanced = await ctx.world.update_day()
+    game_end_result = await _notify_game_end_if_needed(ctx) if day_advanced else None
+    if game_end_result is not None:
+        return ActionResult(status=True, message=f"游戏结束: {game_end_result}", finish=True)
     return ActionResult(status=True, message="你结束了上个回合")
 
 
@@ -229,9 +268,13 @@ async def handle_buy(ctx, act) -> ActionResult:
     actor.inventory.add(item_id, qty)
     actor.money -= total
     market.remove_stock(item_id, qty)
+    record_sold = getattr(market, "record_sold", None)
+    if callable(record_sold):
+        record_sold(item_id, qty)
     shop_assistant = _shop_assistant_actor(ctx)
     if shop_assistant is not None:
         shop_assistant.money += total
+        shop_assistant.total_income = float(getattr(shop_assistant, "total_income", 0.0) or 0.0) + float(total)
     await _broadcast_market_information(ctx)
     await _apply_action_fatigue(ctx, actor)
     await _broadcast_message(ctx, _actor_name(ctx, actor.id), f"购买了{ctx.world.catalog.item(item_id).name} x {qty}")

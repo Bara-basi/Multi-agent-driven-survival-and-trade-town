@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 import numpy as np
 
 from actions.hooks import ON_DAILY_SETTLE
-from config.config import RANDOM_EVENT_PORB,WIN_CONDITION
+from config.config import ATTR_CN_MAP, NPC_WIN_MONEY_THRESHOLD, PLAYER_WIN_MONEY_THRESHOLD, RANDOM_EVENT_PORB
 from model.definitions.ActorDef import ActorId
 from model.definitions.Catalog import Catalog
 from model.definitions.LocationDef import LocationId
@@ -18,6 +18,12 @@ from model.state.LocationState import LocationState
 from runtime.load_data import HUMAN_SHOP_ASSISTANT_ACTOR_ID
 
 logger = logging.getLogger(__name__)
+
+GAME_OVER_ATTR_REASON_LABELS = {
+    "hunger": "饥饿值",
+    "thirst": "水分值",
+    "fatigue": "精神值",
+}
 
 
 @dataclass(slots=True)
@@ -29,6 +35,8 @@ class WorldState:
     locations: Dict[LocationId, LocationState] = field(default_factory=dict)
     client: Any = None
     shop_assistant_last_money: float = 1000.0
+    game_finished: bool = False
+    game_result: str | None = None
 
     def actor(self, actor_id: ActorId) -> ActorState:
         return self.actors[actor_id]
@@ -37,21 +45,55 @@ class WorldState:
         return self.locations[loc_id]
 
 
-    def is_game_over(self,actor_id) -> bool:
-        for attr in self.actor(actor_id=actor_id).attrs.values():
-            if attr.current <= 0:
-                return True
-        return False
+    def _actor_display_name(self, actor_id: ActorId) -> str:
+        try:
+            actor_def = self.catalog.actor(actor_id)
+            return str(getattr(actor_def, "name", "") or actor_id)
+        except Exception:
+            return str(actor_id)
 
-    def is_victory(self, actor_id) -> bool:
-        return self.actor(actor_id=actor_id).money >= WIN_CONDITION
-    async def update_day(self) -> None:
+    def game_over_reason(self, actor_id: ActorId | None = None) -> str:
+        _ = actor_id
+        for check_actor_id, actor in self.actors.items():
+            for attr in (getattr(actor, "attrs", None) or {}).values():
+                if float(getattr(attr, "current", 0.0) or 0.0) <= 0:
+                    attr_name = str(getattr(attr, "name", "") or "")
+                    attr_label = GAME_OVER_ATTR_REASON_LABELS.get(attr_name, ATTR_CN_MAP.get(attr_name, attr_name or "属性"))
+                    return f"{self._actor_display_name(check_actor_id)}的{attr_label}归零"
+
+        for check_actor_id, actor in self.actors.items():
+            if check_actor_id == HUMAN_SHOP_ASSISTANT_ACTOR_ID:
+                continue
+            if float(getattr(actor, "money", 0.0) or 0.0) >= NPC_WIN_MONEY_THRESHOLD:
+                return f"{self._actor_display_name(check_actor_id)}的资金超过{NPC_WIN_MONEY_THRESHOLD}"
+        return ""
+
+    def is_game_over(self, actor_id: ActorId | None = None) -> bool:
+        return bool(self.game_over_reason(actor_id))
+
+    def is_victory(self, actor_id: ActorId | None = None) -> bool:
+        _ = actor_id
+        human_actor = self.actors.get(HUMAN_SHOP_ASSISTANT_ACTOR_ID)
+        if human_actor is None:
+            return False
+        return float(getattr(human_actor, "money", 0.0) or 0.0) >= PLAYER_WIN_MONEY_THRESHOLD
+
+    def finish_game(self, result: str) -> None:
+        self.game_finished = True
+        self.game_result = result
+        for actor in self.actors.values():
+            actor.running = False
+
+    async def update_day(self) -> bool:
         """尝试进入下一回合，如果有任何 Actor 仍在执行，则不推进。"""
+        if self.game_finished:
+            return False
+
         for actor_id, actor in self.actors.items():
             if actor_id == HUMAN_SHOP_ASSISTANT_ACTOR_ID:
                 continue
             if actor.running:
-                return
+                return False
 
         human_actor = self.actors.get(HUMAN_SHOP_ASSISTANT_ACTOR_ID)
         if human_actor is not None and self.client is not None:
@@ -96,6 +138,7 @@ class WorldState:
                     await result
 
         logger.info("回合结算成功,进入回合%s", self.day)
+        return True
 
     async def run_player_market_phase(self, *, advance_prices: bool) -> None:
         human_actor = self.actors.get(HUMAN_SHOP_ASSISTANT_ACTOR_ID)

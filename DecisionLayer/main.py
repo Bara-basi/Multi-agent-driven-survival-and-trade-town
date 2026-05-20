@@ -223,7 +223,6 @@ def _build_runtime_components(world: WorldState, actor_states: Dict[ActorId, obj
 
 async def run(on_update=None) -> None:
     catalog = load_catalog()
-    actor_states, location_states = build_state(catalog)
     actor2agent: Dict[ActorId, str] = {}
     ai_index = 1
     for actor_id in catalog.actors.keys():
@@ -243,26 +242,64 @@ async def run(on_update=None) -> None:
         client = NoopActionLayerClient()
         logger.info("USE_ACION_LAYER=False, Unity action layer disabled")
 
-    world = WorldState(
-        catalog=catalog,
-        actors=actor_states,
-        locations=location_states,
-        client=client,
-    )
-    bind_world = getattr(client, "bind_world", None)
-    if callable(bind_world):
-        bind_world(world)
-    _bootstrap_world_state(world)
-    broadcast_agent_information = getattr(client, "broadcast_agent_information", None)
-    if callable(broadcast_agent_information):
-        await broadcast_agent_information()
+    async def _wait_action_clients_connected() -> None:
+        if not USE_ACION_LAYER:
+            return
+        while not all(client.is_connected(k) for k in actor2agent.values()):
+            await asyncio.sleep(ACTION_LAYER_CONNECT_POLL_SECONDS)
 
-    runtime_init_task = asyncio.create_task(
-        asyncio.to_thread(_build_runtime_components, world, actor_states, catalog),
-        name="runtime-init",
-    )
-    await world.run_player_market_phase(advance_prices=False)
-    agents, runtime = await runtime_init_task
+    async def _build_bound_runtime():
+        reset_catalog = load_catalog()
+        actor_states, location_states = build_state(reset_catalog)
+        world = WorldState(
+            catalog=reset_catalog,
+            actors=actor_states,
+            locations=location_states,
+            client=client,
+        )
+        bind_world = getattr(client, "bind_world", None)
+        if callable(bind_world):
+            bind_world(world)
+        _bootstrap_world_state(world)
+        broadcast_agent_information = getattr(client, "broadcast_agent_information", None)
+        if callable(broadcast_agent_information):
+            await broadcast_agent_information()
+
+        runtime_init_task = asyncio.create_task(
+            asyncio.to_thread(_build_runtime_components, world, actor_states, reset_catalog),
+            name="runtime-init",
+        )
+        await world.run_player_market_phase(advance_prices=False)
+        agents, new_runtime = await runtime_init_task
+        return world, agents, new_runtime
+
+    world, agents, runtime = await _build_bound_runtime()
+    state_ref = {
+        "world": world,
+        "runtime": runtime,
+        "agents": agents,
+    }
+
+    async def _reset_loop() -> None:
+        wait_reset_request = getattr(client, "wait_reset_request", None)
+        if not callable(wait_reset_request):
+            return
+        while True:
+            reset_msg = await wait_reset_request()
+            if reset_msg is None:
+                return
+            logger.info("Reset requested by Unity: %s", reset_msg)
+            await _wait_action_clients_connected()
+            new_world, new_agents, new_runtime = await _build_bound_runtime()
+            runtime.reset(world=new_world, agents=new_agents, executor=new_runtime.executor)
+            state_ref["world"] = new_world
+            state_ref["agents"] = new_agents
+            if on_update:
+                for actor_id in new_agents.keys():
+                    on_update(_build_monitor_payload(new_world, runtime, actor_id, result=None))
+            logger.info("Game state reset complete")
+
+    reset_task = asyncio.create_task(_reset_loop(), name="unity-reset-listener")
 
     if on_update:
         for actor_id in agents.keys():
@@ -270,13 +307,16 @@ async def run(on_update=None) -> None:
 
     def _on_tick(actor_id: ActorId, result) -> None:
         if on_update:
-            on_update(_build_monitor_payload(world, runtime, actor_id, result))
+            on_update(_build_monitor_payload(state_ref["world"], runtime, actor_id, result))
 
-    await runtime.run(
-        interval_seconds=TICK_INTERVAL_SECONDS,
-        actor_ids=agents.keys(),
-        on_tick=_on_tick,
-    )
+    try:
+        await runtime.run(
+            interval_seconds=TICK_INTERVAL_SECONDS,
+            actor_ids=agents.keys(),
+            on_tick=_on_tick,
+        )
+    finally:
+        reset_task.cancel()
 
 
 if __name__ == "__main__":

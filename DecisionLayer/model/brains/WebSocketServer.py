@@ -26,6 +26,7 @@ class WebSocketServer:
     actor2agent: Dict[str, str] = field(default_factory=dict)
     pending: Dict[str, asyncio.Future] = field(default_factory=dict)
     stock_updates: asyncio.Queue = field(default_factory=asyncio.Queue)
+    reset_requests: asyncio.Queue = field(default_factory=asyncio.Queue)
     _market_info_cache: Dict[str, Any] | None = None
     _agent_info_cache: Dict[str, Any] | None = None
     _system_warning_active: set[str] = field(default_factory=set)
@@ -95,6 +96,14 @@ class WebSocketServer:
                         msg["parsed_info"] = info
                     await self.stock_updates.put(msg)
                     logger.info("[%s] shop stock update received", msg.get("agent_id"))
+                elif msg_type == "reset":
+                    await self.reset_requests.put(msg)
+                    logger.info("[%s] reset requested", msg.get("agent_id"))
+                    await ws.send(json.dumps({
+                        "type": "reset_ack",
+                        "agent_id": msg.get("agent_id"),
+                        "server_time": int(time.time()),
+                    }))
                 else:
                     logger.warning("Unknown message type: %s", msg_type)
         except Exception as e:
@@ -157,6 +166,7 @@ class WebSocketServer:
         target: str = None,
         value: float | None = None,
         cur_location: str | None = None,
+        info: Dict[str, Any] | str | None = None,
     ):  
        
         logger.debug(
@@ -187,6 +197,8 @@ class WebSocketServer:
             payload["target"] = target
         if cmd:
             payload["cmd"] = cmd
+        if info is not None:
+            payload["info"] = json.dumps(info, ensure_ascii=False) if isinstance(info, dict) else str(info)
 
         fut = asyncio.get_running_loop().create_future()
         self.pending[action_id] = fut
@@ -568,12 +580,18 @@ class WebSocketServer:
         if not agent_id:
             logger.warning("Actor is not bound to agent_id: %s", actor_id)
             return False
-        result = await self.send(
-            type="command",
-            agent_id=agent_id,
-            cmd="round_start",
-            value=max(0, int(round_index)),
-        )
+        result = None
+        for attempt in range(1, 7):
+            result = await self.send(
+                type="command",
+                agent_id=agent_id,
+                cmd="round_start",
+                value=max(0, int(round_index)),
+            )
+            if self.is_success(result):
+                break
+            logger.warning("round_start failed for %s on attempt %s: %s", agent_id, attempt, result)
+            await asyncio.sleep(0.5)
         ok = self.is_success(result)
         if ok:
             await self.broadcast_message("系统", f"第{max(0, int(round_index))}回合开始")
@@ -595,6 +613,104 @@ class WebSocketServer:
             await self.broadcast_message("系统", f"回合结束，本回合收入{int(today_money_delta)}")
         return ok
     
+    def game_end_information(self, result: str) -> Dict[str, Any]:
+        result = str(result or "").strip().lower()
+        if result not in {"victory", "failure"}:
+            result = "failure"
+
+        info: Dict[str, Any] = {
+            "event": "game_end",
+            "result": result,
+            "isVictory": result == "victory",
+        }
+        if self.world is not None:
+            if result == "failure":
+                reason_fn = getattr(self.world, "game_over_reason", None)
+                reason = reason_fn() if callable(reason_fn) else ""
+                info["failureReason"] = str(reason or "经营失败")
+            info["day"] = int(getattr(self.world, "day", 0) or 0)
+            human_actor = getattr(self.world, "actors", {}).get(HUMAN_SHOP_ASSISTANT_ACTOR_ID)
+            if human_actor is not None:
+                info["player"] = {
+                    "actorId": HUMAN_SHOP_ASSISTANT_ACTOR_ID,
+                    "money": float(getattr(human_actor, "money", 0.0) or 0.0),
+                }
+            info["agents"] = (self.agent_information() or {}).get("agents", [])
+            info["stats"] = self.game_end_stats()
+        return info
+
+    def _item_stat_payload(self, item_id: str | None, quantity: int) -> Dict[str, Any]:
+        item_id = str(item_id or "").strip()
+        item_name = item_id
+        if self.world is not None and item_id:
+            try:
+                item_name = str(getattr(self.world.catalog.item(item_id), "name", "") or item_id)
+            except Exception:
+                item_name = item_id
+        short_id = item_id.split(":", 1)[1] if item_id.startswith("item:") else item_id
+        return {
+            "itemId": item_id,
+            "shortItemId": short_id,
+            "name": item_name,
+            "quantity": int(quantity),
+        }
+
+    @staticmethod
+    def _max_item_stat(values: Dict[str, int] | None) -> tuple[str | None, int]:
+        rows = {str(k): int(v) for k, v in (values or {}).items()}
+        if not rows:
+            return None, 0
+        return max(rows.items(), key=lambda item: item[1])
+
+    def game_end_stats(self) -> Dict[str, Any]:
+        stats: Dict[str, Any] = {
+            "roundCount": 0,
+            "bestSellingItem": self._item_stat_payload(None, 0),
+            "mostPurchasedItem": self._item_stat_payload(None, 0),
+            "totalSoldQuantity": 0,
+            "totalIncome": 0,
+        }
+        if self.world is None:
+            return stats
+
+        stats["roundCount"] = max(0, int(getattr(self.world, "day", 1) or 1) - 1)
+        try:
+            market = self.world.locations["location:market"].market()
+        except Exception:
+            market = None
+
+        if market is not None:
+            sold_item_id, sold_qty = self._max_item_stat(getattr(market, "cumulative_sold", {}))
+            purchased_item_id, purchased_qty = self._max_item_stat(getattr(market, "cumulative_purchased", {}))
+            cumulative_sold = getattr(market, "cumulative_sold", {}) or {}
+            stats["bestSellingItem"] = self._item_stat_payload(sold_item_id, sold_qty)
+            stats["mostPurchasedItem"] = self._item_stat_payload(purchased_item_id, purchased_qty)
+            stats["totalSoldQuantity"] = int(sum(int(v) for v in cumulative_sold.values()))
+
+        human_actor = self.world.actors.get(HUMAN_SHOP_ASSISTANT_ACTOR_ID)
+        if human_actor is not None:
+            stats["totalIncome"] = int(round(float(getattr(human_actor, "total_income", 0.0) or 0.0)))
+        return stats
+
+    async def game_end(self, result: str) -> bool:
+        agent_id = self.actor2agent.get(HUMAN_SHOP_ASSISTANT_ACTOR_ID)
+        if not agent_id:
+            logger.warning("Human shop assistant is not bound to agent_id: %s", HUMAN_SHOP_ASSISTANT_ACTOR_ID)
+            return False
+
+        normalized_result = str(result or "").strip().lower()
+        if normalized_result not in {"victory", "failure"}:
+            normalized_result = "failure"
+
+        response = await self.send(
+            type="info",
+            agent_id=agent_id,
+            cmd="game_end",
+            target=normalized_result,
+            info=self.game_end_information(normalized_result),
+        )
+        return self.is_success(response)
+
     async def consume(self, actor_id,item,value):
         item_animation = self._short_item_id(item)
         result = await self.show_animation(actor_id=actor_id, animation=item_animation, value=-value)
@@ -648,6 +764,16 @@ class WebSocketServer:
         while True:
             try:
                 self.stock_updates.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
+    async def wait_reset_request(self) -> Dict[str, Any] | None:
+        return await self.reset_requests.get()
+
+    def clear_reset_requests(self) -> None:
+        while True:
+            try:
+                self.reset_requests.get_nowait()
             except asyncio.QueueEmpty:
                 break
 

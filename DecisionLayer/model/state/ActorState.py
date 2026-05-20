@@ -35,6 +35,7 @@ class ActorState:
     running: bool = True
     decision_point: int = 3
     decision_point_max: int = 3
+    total_income: float = 0.0
 
     # Per-day decision point context for prompt rendering.
     decision_last_result: Dict[str, Any] = field(default_factory=dict)

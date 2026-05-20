@@ -3,6 +3,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -37,6 +38,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
     [SerializeField] private string statPluginResourcePath = "Art/UI/UI/ShopAssistantUI/回合结束插件";
     [SerializeField] private string statPluginAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/回合结束插件.png";
     [SerializeField] private string statLikeSpriteName = "点赞";
+    [SerializeField] private string statBoxSpriteName = "货箱";
     [SerializeField] private string itemResourcePath = "UI/Item/base_goods";
     [SerializeField] private string itemAssetPath = "Assets/Resources/UI/Item/base_goods.png";
     [SerializeField] private string stampResourcePath = "Art/UI/UI/ShopAssistantUI/评级盖章";
@@ -79,6 +81,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
     [SerializeField] private float statLikeIntroSeconds = 0.42f;
     [SerializeField] private float statLikeSize = 58f;
     [SerializeField] private float statItemIconSize = 60f;
+    [SerializeField] private float statGoodsItemIconScale = 1.18f;
     [SerializeField] private float stampSize = 392f;
     [SerializeField] private float stampIntroSeconds = 1.05f;
 
@@ -90,7 +93,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
     private static GameEndFailureUI instance;
     private static readonly string[] StatLabels =
     {
-        "坚持回合数:",
+        "死因:",
         "最畅销物品:",
         "最多购入物品:",
         "总出售商品:",
@@ -131,8 +134,13 @@ public sealed class GameEndFailureUI : MonoBehaviour
     private RectTransform restartButtonRect;
     private RectTransform menuButtonRect;
     private Sprite[] productSprites;
+    private Sprite statBoxSprite;
     private FailureStatRowData[] statRowsData;
     private Coroutine showRoutine;
+    private string failureReason = "林墨墨的体力值归零";
+    private string gameEndInfoJson;
+    private static int lastDebugInputFrame = -1;
+    private const string TestGameEndInfoJson = "{\"result\":\"failure\",\"isVictory\":false,\"failureReason\":\"林墨墨的饥饿值归零\",\"stats\":{\"roundCount\":18,\"bestSellingItem\":{\"itemId\":\"item:meat\",\"shortItemId\":\"meat\",\"name\":\"烤肉\",\"quantity\":87},\"mostPurchasedItem\":{\"itemId\":\"item:gold\",\"shortItemId\":\"gold\",\"name\":\"黄金\",\"quantity\":356},\"totalSoldQuantity\":512,\"totalIncome\":12800}}";
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -148,6 +156,16 @@ public sealed class GameEndFailureUI : MonoBehaviour
 
     public static void ShowFailure()
     {
+        ShowFailure(null);
+    }
+
+    public static void ShowFailure(string failureReason)
+    {
+        ShowFailure(failureReason, null);
+    }
+
+    public static void ShowFailure(string failureReason, string gameEndInfoJson)
+    {
         var ui = instance != null ? instance : FindObjectOfType<GameEndFailureUI>();
         if (ui == null)
         {
@@ -155,6 +173,8 @@ public sealed class GameEndFailureUI : MonoBehaviour
             ui = root.AddComponent<GameEndFailureUI>();
         }
 
+        ui.failureReason = string.IsNullOrWhiteSpace(failureReason) ? "经营失败" : failureReason.Trim();
+        ui.gameEndInfoJson = string.IsNullOrWhiteSpace(gameEndInfoJson) ? TestGameEndInfoJson : gameEndInfoJson;
         ui.Show();
     }
 
@@ -214,10 +234,21 @@ public sealed class GameEndFailureUI : MonoBehaviour
 
     private void Update()
     {
-        var keyboard = Keyboard.current;
-        if (keyboard != null && keyboard[debugShowKey].wasPressedThisFrame)
+        HandleDebugInput();
+    }
+
+    public static void HandleDebugInput()
+    {
+        if (lastDebugInputFrame == Time.frameCount)
         {
-            Show();
+            return;
+        }
+
+        var keyboard = Keyboard.current;
+        if (keyboard != null && keyboard[Key.M].wasPressedThisFrame)
+        {
+            lastDebugInputFrame = Time.frameCount;
+            ShowFailure(null, TestGameEndInfoJson);
         }
     }
 
@@ -330,6 +361,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
         var rightSprite = ResolveSprite(statRowResourcePath, statRowAssetPath, statRowRightSpriteName);
         var likeSprite = showLikeMarks ? ResolveSprite(statPluginResourcePath, statPluginAssetPath, statLikeSpriteName) : null;
         productSprites = ResolveProductSprites();
+        statBoxSprite = ResolveSprite(statPluginResourcePath, statPluginAssetPath, statBoxSpriteName);
 
         for (int i = 0; i < rowCount; i++)
         {
@@ -432,25 +464,31 @@ public sealed class GameEndFailureUI : MonoBehaviour
         label.rectTransform.offsetMax = new Vector2(labelRight, 0f);
 
         bool productRow = IsProductValueRow(index);
+        bool reasonRow = index == 0;
         float likeSlotWidth = statLikeSize + 34f;
         var value = CreateTMPText("RowValue", textGroupRect, "0", 34f, FontStyles.Bold, TextAlignmentOptions.Left);
+        if (reasonRow)
+        {
+            value.alignment = TextAlignmentOptions.Right;
+        }
         value.enableAutoSizing = true;
-        value.fontSizeMin = 24f;
-        value.fontSizeMax = 36f;
+        value.fontSizeMin = reasonRow ? 18f : 24f;
+        value.fontSizeMax = reasonRow ? 31f : 36f;
         value.color = new Color(0.08f, 0.50f, 0.16f, 1f);
         value.rectTransform.anchorMin = new Vector2(0f, 0f);
         value.rectTransform.anchorMax = new Vector2(0f, 1f);
         value.rectTransform.pivot = new Vector2(0f, 0.5f);
         // 商品行
-        value.rectTransform.offsetMin = new Vector2(productRow ? rowWidth * 0.78f : rowWidth * 0.78f, 0f);
-        value.rectTransform.offsetMax = new Vector2(rowWidth - likeSlotWidth, 0f);
+        value.rectTransform.offsetMin = new Vector2(reasonRow ? rowWidth * 0.42f : rowWidth * 0.78f, 0f);
+        value.rectTransform.offsetMax = new Vector2(reasonRow ? rowWidth - statItemIconSize * 2f : rowWidth - likeSlotWidth, 0f);
 
         var itemIcon = CreateImage("RowItemIcon", textGroupRect, null);
         var itemIconRect = itemIcon.rectTransform;
         itemIconRect.anchorMin = new Vector2(0f, 0.5f);
         itemIconRect.anchorMax = new Vector2(0f, 0.5f);
         itemIconRect.pivot = new Vector2(0.5f, 0.5f);
-        itemIconRect.sizeDelta = new Vector2(statItemIconSize, statItemIconSize);
+        float itemIconSize = StatItemIconSizeForIndex(index);
+        itemIconRect.sizeDelta = new Vector2(itemIconSize, itemIconSize);
         // 商品行数字
         itemIconRect.anchoredPosition = new Vector2(rowWidth * 0.74f, 0f);
         itemIcon.preserveAspect = true;
@@ -536,6 +574,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
             parent,
             restartSprite,
             new Vector2(-halfGap - halfButtonWidth, buttonY));
+        BindButtonClick(restartButtonRect, RestartGame);
 
         menuButtonRect = CreateSettlementButton(
             "FailureMenuButton",
@@ -571,6 +610,38 @@ public sealed class GameEndFailureUI : MonoBehaviour
         return rt;
     }
 
+    private static void BindButtonClick(RectTransform rect, UnityEngine.Events.UnityAction action)
+    {
+        if (rect == null || action == null)
+        {
+            return;
+        }
+
+        var button = rect.GetComponent<Button>();
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(action);
+    }
+
+    private void RestartGame()
+    {
+        Hide();
+        WsAgentClient.RequestGameResetAfterSceneReload();
+        var activeScene = SceneManager.GetActiveScene();
+        if (activeScene.buildIndex >= 0)
+        {
+            SceneManager.LoadScene(activeScene.buildIndex);
+        }
+        else
+        {
+            SceneManager.LoadScene(activeScene.name);
+        }
+    }
+
     private IEnumerator PlayShowRoutine()
     {
         overlayRoot.SetActive(true);
@@ -580,7 +651,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
         overlayCanvasGroup.blocksRaycasts = true;
 
         SetDrawerProgress(0f);
-        PrepareMockStatRows();
+        PrepareStatRows();
         ResetStatRows();
 
         float elapsed = 0f;
@@ -793,6 +864,13 @@ public sealed class GameEndFailureUI : MonoBehaviour
         var data = statRowsData[index];
         var itemImage = statItemIconImages != null && index < statItemIconImages.Length ? statItemIconImages[index] : null;
         var itemRect = statItemIconRects != null && index < statItemIconRects.Length ? statItemIconRects[index] : null;
+        if (data.isTextValue)
+        {
+            valueText.text = data.displayValue;
+            yield return new WaitForSecondsRealtime(Mathf.Max(0.01f, statValueCountSeconds * 0.35f));
+            yield break;
+        }
+
         float elapsed = 0f;
         float duration = Mathf.Max(0.01f, statValueCountSeconds);
         while (elapsed < duration)
@@ -801,14 +879,21 @@ public sealed class GameEndFailureUI : MonoBehaviour
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = Mathf.SmoothStep(0f, 1f, t);
 
-            if (data.hasProductIcon && itemImage != null && productSprites != null && productSprites.Length > 0)
+            if (data.hasProductIcon && itemImage != null && (data.fixedProductIcon || (productSprites != null && productSprites.Length > 0)))
             {
-                int cycle = Mathf.FloorToInt(t * productSprites.Length * 3.2f);
-                itemImage.sprite = t >= 0.92f ? data.productSprite : productSprites[cycle % productSprites.Length];
+                if (data.fixedProductIcon)
+                {
+                    itemImage.sprite = data.productSprite;
+                }
+                else
+                {
+                    int cycle = Mathf.FloorToInt(t * productSprites.Length * 3.2f);
+                    itemImage.sprite = t >= 0.92f ? data.productSprite : productSprites[cycle % productSprites.Length];
+                }
                 itemImage.color = Color.white;
                 if (itemRect != null)
                 {
-                    float flicker = Mathf.Sin(t * Mathf.PI * 16f) * Mathf.Lerp(1f, 0f, t);
+                    float flicker = data.fixedProductIcon ? 0f : Mathf.Sin(t * Mathf.PI * 16f) * Mathf.Lerp(1f, 0f, t);
                     itemRect.localScale = Vector3.one * Mathf.Lerp(0.92f, 1.08f, Mathf.Abs(flicker));
                     itemRect.localRotation = Quaternion.Euler(0f, 0f, flicker * 5f);
                 }
@@ -906,11 +991,11 @@ public sealed class GameEndFailureUI : MonoBehaviour
         }
 
         int likeCount = CountLikedRows();
-        string spriteName = likeCount >= 5 ? stampBestSpriteName : likeCount == 4 ? stampGreatSpriteName : stampNormalSpriteName;
+        string spriteName = likeCount >= 4 ? stampBestSpriteName : likeCount == 3 ? stampGreatSpriteName : stampNormalSpriteName;
         stampImage.sprite = ResolveSprite(stampResourcePath, stampAssetPath, spriteName);
         stampImage.color = stampImage.sprite != null ? Color.white : new Color(1f, 1f, 1f, 0f);
 
-        float power = likeCount >= 5 ? 0.92f : likeCount == 4 ? 0.82f : 0.74f;
+        float power = likeCount >= 4 ? 0.92f : likeCount == 3 ? 0.82f : 0.74f;
         Vector2 restPos = new Vector2(0f, -panelTopHeight - panelMiddleHeight * 0.55f);
         Vector2 startPos = restPos + new Vector2(0f, 28f);
         stampRect.gameObject.SetActive(true);
@@ -1009,7 +1094,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
         }
 
         int count = 0;
-        for (int i = 0; i < statRowsData.Length; i++)
+        for (int i = 1; i < statRowsData.Length; i++)
         {
             if (statRowsData[i].liked)
             {
@@ -1034,6 +1119,11 @@ public sealed class GameEndFailureUI : MonoBehaviour
         return index == 1 || index == 2 || index == 3;
     }
 
+    private float StatItemIconSizeForIndex(int index)
+    {
+        return index == 1 || index == 2 ? statItemIconSize * statGoodsItemIconScale : statItemIconSize;
+    }
+
     private Sprite[] ResolveProductSprites()
     {
         var sprites = new Sprite[ProductSpriteNames.Length];
@@ -1054,38 +1144,111 @@ public sealed class GameEndFailureUI : MonoBehaviour
         return productSprites[Mathf.Abs(index) % productSprites.Length];
     }
 
-    private void PrepareMockStatRows()
+    private void PrepareStatRows()
     {
         int count = Mathf.Max(0, statRowCount);
         statRowsData = new FailureStatRowData[count];
+        var info = ParseGameEndInfo(string.IsNullOrWhiteSpace(gameEndInfoJson) ? TestGameEndInfoJson : gameEndInfoJson);
+        var fallback = ParseGameEndInfo(TestGameEndInfoJson);
+        var stats = info != null && info.stats != null ? info.stats : fallback.stats;
+        string reason = info != null && !string.IsNullOrWhiteSpace(info.failureReason)
+            ? info.failureReason
+            : failureReason;
 
         for (int i = 0; i < count; i++)
         {
+            if (i == 0)
+            {
+                statRowsData[i] = new FailureStatRowData
+                {
+                    displayValue = string.IsNullOrWhiteSpace(reason) ? "经营失败" : reason,
+                    numericValue = 0,
+                    hasProductIcon = false,
+                    productSprite = null,
+                    fixedProductIcon = false,
+                    isTextValue = true,
+                    liked = false
+                };
+                continue;
+            }
+
             if (IsProductValueRow(i))
             {
-                int productMax = 999;
-                int productValue = UnityEngine.Random.Range(0, productMax + 1);
-                int productIndex = UnityEngine.Random.Range(0, ProductSpriteNames.Length);
+                GameEndItemStat item = null;
+                int productValue;
+                Sprite productSprite;
+                bool fixedIcon = false;
+                if (i == 1)
+                {
+                    item = stats.bestSellingItem;
+                    productValue = Mathf.Max(0, item != null ? item.quantity : 0);
+                    productSprite = ResolveStatItemSprite(item);
+                }
+                else if (i == 2)
+                {
+                    item = stats.mostPurchasedItem;
+                    productValue = Mathf.Max(0, item != null ? item.quantity : 0);
+                    productSprite = ResolveStatItemSprite(item);
+                }
+                else
+                {
+                    productValue = Mathf.Max(0, stats.totalSoldQuantity);
+                    productSprite = statBoxSprite;
+                    fixedIcon = true;
+                }
                 statRowsData[i] = new FailureStatRowData
                 {
                     displayValue = productValue.ToString(),
                     numericValue = productValue,
                     hasProductIcon = true,
-                    productSprite = ResolveProductSprite(productIndex),
-                    liked = productValue > productMax * 0.5f
+                    productSprite = productSprite,
+                    fixedProductIcon = fixedIcon,
+                    isTextValue = false,
+                    liked = productValue > 0
                 };
                 continue;
             }
 
-            int numericMax = i == 4 ? 99999 : 999;
-            int numericValue = UnityEngine.Random.Range(0, numericMax + 1);
+            int numericValue = Mathf.Max(0, stats.totalIncome);
             statRowsData[i] = new FailureStatRowData
             {
                 displayValue = numericValue.ToString(),
                 numericValue = numericValue,
                 hasProductIcon = false,
-                liked = numericValue > numericMax * 0.5f
+                productSprite = null,
+                fixedProductIcon = false,
+                isTextValue = false,
+                liked = numericValue > 0
             };
+        }
+    }
+
+    private Sprite ResolveStatItemSprite(GameEndItemStat item)
+    {
+        if (item != null)
+        {
+            var sprite = ResolveSprite(itemResourcePath, itemAssetPath, item.name);
+            if (sprite != null)
+            {
+                return sprite;
+            }
+        }
+        return ResolveProductSprite(0);
+    }
+
+    private static GameEndInfoPayload ParseGameEndInfo(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+        try
+        {
+            return JsonUtility.FromJson<GameEndInfoPayload>(json);
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
@@ -1327,7 +1490,37 @@ public sealed class GameEndFailureUI : MonoBehaviour
         public int numericValue;
         public bool hasProductIcon;
         public Sprite productSprite;
+        public bool fixedProductIcon;
+        public bool isTextValue;
         public bool liked;
+    }
+
+    [Serializable]
+    private sealed class GameEndInfoPayload
+    {
+        public string result;
+        public bool isVictory;
+        public string failureReason;
+        public GameEndStats stats;
+    }
+
+    [Serializable]
+    private sealed class GameEndStats
+    {
+        public int roundCount;
+        public GameEndItemStat bestSellingItem;
+        public GameEndItemStat mostPurchasedItem;
+        public int totalSoldQuantity;
+        public int totalIncome;
+    }
+
+    [Serializable]
+    private sealed class GameEndItemStat
+    {
+        public string itemId;
+        public string shortItemId;
+        public string name;
+        public int quantity;
     }
 
     private static float EaseOutBack(float t)
@@ -1338,4 +1531,3 @@ public sealed class GameEndFailureUI : MonoBehaviour
         return 1f + c3 * p * p * p + c1 * p * p;
     }
 }
-

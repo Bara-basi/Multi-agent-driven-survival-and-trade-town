@@ -28,6 +28,8 @@ class MarketComponent:
     _stock: Dict[ItemId, int] = field(default_factory=dict)
     _price: Dict[ItemId, float] = field(default_factory=dict)
     _yesterday_price: Dict[ItemId, float] = field(default_factory=dict)
+    cumulative_sold: Dict[ItemId, int] = field(default_factory=dict)
+    cumulative_purchased: Dict[ItemId, int] = field(default_factory=dict)
     # item_id -> (next_price, intel_accuracy)
     _next_price: Dict[ItemId, Tuple[float, float]] = field(default_factory=dict)
     # Locked items apply to next-day price generation and are consumed after one update_day.
@@ -36,6 +38,8 @@ class MarketComponent:
 
     def init_stock(self, catalog: Catalog) -> None:
         self._stock = {item_id: item_def.default_quantity for item_id, item_def in catalog.items.items()}
+        self.cumulative_sold = {item_id: 0 for item_id in self._stock.keys()}
+        self.cumulative_purchased = dict(self._stock)
         self._price = {
             item_id: float(catalog.item(item_id).base_price)
             for item_id in catalog.items.keys()
@@ -50,6 +54,8 @@ class MarketComponent:
             "yesterday_price": self._yesterday_price,
             "next_price": self._next_price,
             "locked_today": list(self._locked_today_items),
+            "cumulative_sold": self.cumulative_sold,
+            "cumulative_purchased": self.cumulative_purchased,
         }
 
     def stock(self, item_id: ItemId) -> int:
@@ -73,6 +79,18 @@ class MarketComponent:
         q = max(int(qty), 0)
         left = self.stock(item_id) - q
         self._stock[item_id] = max(left, 0)
+
+    def record_sold(self, item_id: ItemId, qty: int) -> None:
+        q = max(int(qty), 0)
+        if q <= 0:
+            return
+        self.cumulative_sold[item_id] = int(self.cumulative_sold.get(item_id, 0)) + q
+
+    def record_purchased(self, item_id: ItemId, qty: int) -> None:
+        q = max(int(qty), 0)
+        if q <= 0:
+            return
+        self.cumulative_purchased[item_id] = int(self.cumulative_purchased.get(item_id, 0)) + q
 
     def is_price_locked_for_next_day(self, item_id: ItemId) -> bool:
         return item_id in self._locked_next_day_items
@@ -276,7 +294,16 @@ class MarketComponent:
             if not item_id:
                 continue
             try:
-                self._stock[item_id] = max(0, int(row.get("currentStock", self.stock(item_id))))
+                old_stock = self.stock(item_id)
+                new_stock = max(0, int(row.get("currentStock", old_stock)))
+                try:
+                    purchased_qty = int(row.get("purchaseQuantity", 0) or 0)
+                except Exception:
+                    purchased_qty = 0
+                if purchased_qty <= 0:
+                    purchased_qty = max(0, new_stock - old_stock)
+                self.record_purchased(item_id, purchased_qty)
+                self._stock[item_id] = new_stock
                 updated = True
             except Exception:
                 pass
