@@ -378,10 +378,14 @@ MonoBehaviour:
   grid: {fileID: 1786365790}
   obstacleTilemap: {fileID: 476479623}
   hud: {fileID: 4987062933002644292}
-  speed: 10
+  speed: 15
   enableIdleWander: 1
   idleMoveIntervalMin: 2.03
   idleMoveIntervalMax: 5
+  agentAvoidanceCellPadding: 1
+  queueCellSpacing: 2
+  agentPassThroughAfterBlockedSeconds: 1.2
+  agentPassThroughDuration: 2.5
   arriveCellEpsilon: 0.1
   repathIfBlockedAfterSec: 0.5
   hardStuckAfterSec: 2
@@ -510126,10 +510130,14 @@ MonoBehaviour:
   grid: {fileID: 1786365790}
   obstacleTilemap: {fileID: 476479623}
   hud: {fileID: 295338620}
-  speed: 10
+  speed: 15
   enableIdleWander: 1
   idleMoveIntervalMin: 2
   idleMoveIntervalMax: 5
+  agentAvoidanceCellPadding: 1
+  queueCellSpacing: 2
+  agentPassThroughAfterBlockedSeconds: 1.2
+  agentPassThroughDuration: 2.5
   arriveCellEpsilon: 0.1
   repathIfBlockedAfterSec: 0.5
   hardStuckAfterSec: 2
@@ -568286,10 +568294,14 @@ MonoBehaviour:
   grid: {fileID: 1786365790}
   obstacleTilemap: {fileID: 476479623}
   hud: {fileID: 1804343460}
-  speed: 10
+  speed: 15
   enableIdleWander: 1
   idleMoveIntervalMin: 2
   idleMoveIntervalMax: 5
+  agentAvoidanceCellPadding: 1
+  queueCellSpacing: 2
+  agentPassThroughAfterBlockedSeconds: 1.2
+  agentPassThroughDuration: 2.5
   arriveCellEpsilon: 0.1
   repathIfBlockedAfterSec: 0.5
   hardStuckAfterSec: 2
@@ -589233,7 +589245,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 001424a812615e24e854afe66572794b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 10
+  speed: 15
 --- !u!114 &1931695779
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -589398,6 +589410,10 @@ MonoBehaviour:
   enableIdleWander: 1
   idleMoveIntervalMin: 2
   idleMoveIntervalMax: 5
+  agentAvoidanceCellPadding: 1
+  queueCellSpacing: 2
+  agentPassThroughAfterBlockedSeconds: 1.2
+  agentPassThroughDuration: 2.5
   arriveCellEpsilon: 0.1
   repathIfBlockedAfterSec: 0.5
   hardStuckAfterSec: 2

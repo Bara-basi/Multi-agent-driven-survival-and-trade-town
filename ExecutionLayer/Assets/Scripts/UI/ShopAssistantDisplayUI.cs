@@ -197,10 +197,7 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
     private Coroutine roundStartRoutine;
     private Coroutine roundEndRoutine;
     private Coroutine openInventoryAfterRoundStartRoutine;
-    private Coroutine stockSuccessToastRoutine;
     private RectTransform uiRootRect;
-    private CanvasGroup stockSuccessToastCanvasGroup;
-    private RectTransform stockSuccessToastRect;
     private Button openInventoryButton;
     private Button stockInventoryButton;
     private ScrollRect messageFeedScrollRect;

@@ -10,7 +10,7 @@ using UnityEngine;
 
 public interface IAutoNavigator
 {
-    void AddCommand(float cost_time, string cmd, List<Vector3> target, Action onArrived);
+    void AddCommand(float cost_time, string cmd, List<Vector3> target, Action onArrived, string targetKey = null);
 }
 
 public interface IAutoHUDAnimation
@@ -659,11 +659,19 @@ public class WsAgentClient : MonoBehaviour
 
             mainThreadQueue.Enqueue(() =>
             {
+                string requestedTarget = msg.target;
+
                 if (msg.target == "家")
+                {
                     msg.target = inner_home_place[UnityEngine.Random.Range(0, inner_home_place.Count)];
+                    requestedTarget = msg.target;
+                }
 
                 if (msg.target == "集市")
+                {
                     msg.target = inner_market_place[UnityEngine.Random.Range(0, inner_market_place.Count)];
+                    requestedTarget = msg.target;
+                }
 
                 if (!TryResolveTarget(msg, out var target))
                 {
@@ -689,7 +697,7 @@ public class WsAgentClient : MonoBehaviour
                         action_id = msg.action_id,
                         status = "ok"
                     });
-                });
+                }, requestedTarget);
             });
 
             return;

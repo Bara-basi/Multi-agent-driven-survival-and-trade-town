@@ -14,6 +14,7 @@ public class ActionPair
 {
     public string cmd;
     public Vector2 target;
+    public string targetKey;
     public int facingDirection;
     public Action actionCallBack;
     public float cost;
@@ -48,12 +49,24 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
     private bool idleMoving = false;
     private Vector3Int idleTargetCell;
     private float nextIdleMoveAt = 0f;
+    private bool hasStepReservation = false;
+    private Vector3Int reservedStepCell;
+    private float reservationWaitTimer = 0f;
+    private float agentBlockedByAgentTimer = 0f;
    
     [Header("Idle Wander")]
     public bool enableIdleWander = true;
     public float idleMoveIntervalMin = 2f;
     public float idleMoveIntervalMax = 5f;
 
+    [Header("Agent Avoidance")]
+    [Min(0)]
+    public int agentAvoidanceCellPadding = 1;
+    [Min(1)]
+    public int queueCellSpacing = 2;
+    public float agentPassThroughAfterBlockedSeconds = 1.2f;
+    public float agentPassThroughDuration = 2.5f;
+    private float agentPassThroughUntil = 0f;
 
     [Header("Path Following")]
     public float arriveCellEpsilon = 0.2f;
@@ -67,6 +80,14 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
     private Vector3 lastPos;
     private Vector3Int currentGoalCell;
     private bool hasGoal = false;
+    private string currentTargetKey = "";
+    private bool currentCommandUsesQueue = false;
+    private string currentQueueKey = "";
+    private Vector3Int currentFinalTargetCell;
+    private Vector3Int currentMoveDestinationCell;
+    private bool waitingAtQueueSlot = false;
+    private int lastQueueRank = -2;
+    private const string CheckoutTargetKey = "收银台";
 
     [Header("Obstacle Physics Check")]
     public Collider2D playerCollider;
@@ -83,7 +104,20 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         if (!cam) cam = Camera.main;
         if (ani) ani.SetInteger("move", 0);
         lastPos = transform.position;
+        if (grid != null)
+            AgentCrowdCoordinator.SyncCell(this, grid.WorldToCell(transform.position));
         ScheduleNextIdleMove();
+    }
+
+    void OnDisable()
+    {
+        AgentCrowdCoordinator.Unregister(this);
+    }
+
+    void OnEnable()
+    {
+        if (grid != null)
+            AgentCrowdCoordinator.SyncCell(this, grid.WorldToCell(transform.position));
     }
 
     void FixedUpdate()
@@ -152,11 +186,14 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
             var pair = actionList.Dequeue();
             currentCallback = pair.actionCallBack;
             curCmd = pair.cmd;
+            currentTargetKey = pair.targetKey ?? "";
             currentFacingDirection = pair.facingDirection;
             if (curCmd == "go_to")
             {
                 var startCell = grid.WorldToCell(transform.position);
                 var targetCell = grid.WorldToCell((Vector3)pair.target);
+                AgentCrowdCoordinator.SyncCell(this, startCell);
+
                 if (!IsWalkable(targetCell))
                 {
                     if (!FindNearestWalkable(ref targetCell, 8))
@@ -167,15 +204,31 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
                     }
                 }
 
+                currentCommandUsesQueue = IsQueueTarget(currentTargetKey);
+                currentQueueKey = currentCommandUsesQueue ? currentTargetKey : "";
+                if (currentCommandUsesQueue && currentFacingDirection == 0)
+                    currentFacingDirection = 4;
+                currentFinalTargetCell = targetCell;
+                waitingAtQueueSlot = false;
+                lastQueueRank = -2;
+                if (currentCommandUsesQueue)
+                {
+                    AgentCrowdCoordinator.JoinQueue(this, currentQueueKey);
+                    targetCell = ResolveQueueDestinationCell();
+                }
+                currentMoveDestinationCell = targetCell;
                 hasGoal = true;
                 currentGoalCell = targetCell;
 
-                var path = AStar(startCell, targetCell);
+                var path = AStar(startCell, targetCell, !CanPassThroughAgents());
+                if ((path == null || path.Count == 0) && TryEnableAgentPassThrough(startCell, targetCell))
+                    return;
                 if (path != null && path.Count > 0)
                 {
                     pathCells.Clear();
                     pathCells.AddRange(path);
                     pathIndex = 0;
+                    reservationWaitTimer = 0f;
                     stuckTimer = 0f;
                     lastPos = transform.position;
                     NextStep();
@@ -228,10 +281,43 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
 
         if(curCmd == "go_to")
         {
+            if (currentCommandUsesQueue && RefreshQueueDestinationIfNeeded())
+                return;
+
+            if (currentCommandUsesQueue && waitingAtQueueSlot && pathCells.Count == 0)
+            {
+                autoMove = Vector2.zero;
+                return;
+            }
             //向着某处走动
             if (pathCells.Count > 0)
             {
-                var targetWorld = grid.GetCellCenterWorld(pathCells[pathIndex]);
+                var stepCell = pathCells[pathIndex];
+                var currentCell = grid.WorldToCell(transform.position);
+                if (stepCell != currentCell && !hasStepReservation && !CanPassThroughAgents())
+                {
+                    if (!AgentCrowdCoordinator.TryReserveStep(this, currentCell, stepCell, agentAvoidanceCellPadding))
+                    {
+                        autoMove = Vector2.zero;
+                        reservationWaitTimer += Time.deltaTime;
+                        agentBlockedByAgentTimer += Time.deltaTime;
+                        if (agentBlockedByAgentTimer > agentPassThroughAfterBlockedSeconds && TryEnableAgentPassThrough(currentCell, currentGoalCell))
+                            return;
+                        if (reservationWaitTimer > repathIfBlockedAfterSec)
+                        {
+                            RepathFromHere();
+                            reservationWaitTimer = 0f;
+                        }
+                        return;
+                    }
+
+                    hasStepReservation = true;
+                    reservedStepCell = stepCell;
+                    reservationWaitTimer = 0f;
+                    agentBlockedByAgentTimer = 0f;
+                }
+
+                var targetWorld = grid.GetCellCenterWorld(stepCell);
                 targetWorld.z = 0f;
                 Vector2 dir = (Vector2)(targetWorld - transform.position);
 
@@ -240,9 +326,20 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
                 {
                     if (rb != null) rb.position = targetWorld;
                     else transform.position = targetWorld;
+                    AgentCrowdCoordinator.CommitStep(this, stepCell);
+                    hasStepReservation = false;
+                    agentBlockedByAgentTimer = 0f;
                     pathIndex++;
                     if (pathIndex >= pathCells.Count)
                     {
+                        if (currentCommandUsesQueue && !AgentCrowdCoordinator.IsQueueHead(this, currentQueueKey))
+                        {
+                            ApplyFacingDirection(currentFacingDirection);
+                            ClearPathOnly();
+                            waitingAtQueueSlot = true;
+                            return;
+                        }
+
                         // 到达终点
                         frozen = true;
                         frozenUntil = Time.time + 3;
@@ -281,6 +378,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
                             snap.z = 0f;
                             if (rb != null) rb.position = snap;
                             else transform.position = snap;
+                            AgentCrowdCoordinator.SyncCell(this, curCell);
                             RepathFromHere();
                         }
                         else
@@ -337,7 +435,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
 
     }
 
-    public void AddCommand(float cost_time,string cmd, List<Vector3> target, Action onArrived)
+    public void AddCommand(float cost_time,string cmd, List<Vector3> target, Action onArrived, string targetKey = null)
     {
         //Vector3Int startCell = grid.WorldToCell(transform.position);
         //Vector2 temp_target = new Vector2(startCell.x+10f, startCell.y+10f);
@@ -345,16 +443,16 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         for (int i = 0; i < target.Count - 1; i++)
         {
             var waypoint = target[i];
-            actionList.Enqueue(new ActionPair { cost =  cost_time,cmd= cmd,target = new Vector2(waypoint.x, waypoint.y), facingDirection = 0, actionCallBack = null});
+            actionList.Enqueue(new ActionPair { cost =  cost_time,cmd= cmd,target = new Vector2(waypoint.x, waypoint.y), targetKey = "", facingDirection = 0, actionCallBack = null});
         }
         if(target.Count > 0)
         {
             var finalTarget = target[^1];
-            actionList.Enqueue(new ActionPair { cost = cost_time, cmd = cmd, target = new Vector2(finalTarget.x, finalTarget.y), facingDirection = Mathf.RoundToInt(finalTarget.z), actionCallBack = onArrived });
+            actionList.Enqueue(new ActionPair { cost = cost_time, cmd = cmd, target = new Vector2(finalTarget.x, finalTarget.y), targetKey = targetKey ?? "", facingDirection = Mathf.RoundToInt(finalTarget.z), actionCallBack = onArrived });
         }
         else
         {
-            actionList.Enqueue(new ActionPair { cost = cost_time, cmd = cmd, target = Vector2.zero, facingDirection = 0, actionCallBack = onArrived });
+            actionList.Enqueue(new ActionPair { cost = cost_time, cmd = cmd, target = Vector2.zero, targetKey = targetKey ?? "", facingDirection = 0, actionCallBack = onArrived });
         }
     }
     public void Suspend(float seconds)
@@ -371,6 +469,8 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
     //}
     public void CancelAuto()
     {
+        AgentCrowdCoordinator.ReleaseStepReservation(this);
+        hasStepReservation = false;
         pathCells.Clear();
         pathIndex = 0;
         autoMove = Vector2.zero;
@@ -378,6 +478,9 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         idleMoving = false;
         stuckTimer = 0f;
         hardStuckTimer = 0f;
+        reservationWaitTimer = 0f;
+        agentBlockedByAgentTimer = 0f;
+        waitingAtQueueSlot = false;
         hasGoal = false;
     }
 
@@ -385,9 +488,174 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
     {
         var cb = currentCallback;
         currentCallback = null;
+        ReleaseCurrentQueue();
         curCmd = "";
         currentFacingDirection = 0;
+        currentTargetKey = "";
+        currentCommandUsesQueue = false;
+        currentQueueKey = "";
+        lastQueueRank = -2;
         cb?.Invoke();
+    }
+
+    void ClearPathOnly()
+    {
+        AgentCrowdCoordinator.ReleaseStepReservation(this);
+        hasStepReservation = false;
+        pathCells.Clear();
+        pathIndex = 0;
+        autoMove = Vector2.zero;
+        if (rb != null) rb.linearVelocity = Vector2.zero;
+        stuckTimer = 0f;
+        hardStuckTimer = 0f;
+        reservationWaitTimer = 0f;
+        agentBlockedByAgentTimer = 0f;
+    }
+
+    void ReleaseCurrentQueue()
+    {
+        if (!currentCommandUsesQueue) return;
+        AgentCrowdCoordinator.LeaveQueue(this);
+    }
+
+    bool IsQueueTarget(string targetKey)
+    {
+        return string.Equals(targetKey, CheckoutTargetKey, StringComparison.Ordinal);
+    }
+
+    bool CanPassThroughAgents()
+    {
+        return !currentCommandUsesQueue && Time.time < agentPassThroughUntil;
+    }
+
+    bool TryEnableAgentPassThrough(Vector3Int startCell, Vector3Int goalCell)
+    {
+        if (currentCommandUsesQueue) return false;
+
+        var staticPath = AStar(startCell, goalCell, false);
+        if (staticPath == null || staticPath.Count == 0)
+            return false;
+
+        agentPassThroughUntil = Time.time + Mathf.Max(0.1f, agentPassThroughDuration);
+        AgentCrowdCoordinator.ReleaseStepReservation(this);
+        hasStepReservation = false;
+        pathCells.Clear();
+        pathCells.AddRange(staticPath);
+        pathIndex = 0;
+        reservationWaitTimer = 0f;
+        agentBlockedByAgentTimer = 0f;
+        stuckTimer = 0f;
+        hardStuckTimer = 0f;
+        hasGoal = true;
+        currentGoalCell = goalCell;
+        NextStep();
+        return true;
+    }
+
+    Vector3Int ResolveQueueDestinationCell()
+    {
+        int rank = AgentCrowdCoordinator.GetQueueRank(this, currentQueueKey);
+        lastQueueRank = rank;
+
+        if (rank <= 0)
+            return currentFinalTargetCell;
+
+        return FindQueueWaitCell(rank);
+    }
+
+    bool RefreshQueueDestinationIfNeeded()
+    {
+        int rank = AgentCrowdCoordinator.GetQueueRank(this, currentQueueKey);
+        if (rank < 0)
+        {
+            AgentCrowdCoordinator.JoinQueue(this, currentQueueKey);
+            rank = AgentCrowdCoordinator.GetQueueRank(this, currentQueueKey);
+        }
+
+        var desiredCell = rank <= 0 ? currentFinalTargetCell : FindQueueWaitCell(rank);
+        if (desiredCell == currentMoveDestinationCell && rank == lastQueueRank)
+            return false;
+
+        currentMoveDestinationCell = desiredCell;
+        currentGoalCell = desiredCell;
+        lastQueueRank = rank;
+        waitingAtQueueSlot = false;
+        RepathFromHere();
+        return true;
+    }
+
+    Vector3Int FindQueueWaitCell(int queueRank)
+    {
+        int spacing = Mathf.Max(1, queueCellSpacing);
+        int targetDistance = Mathf.Max(1, queueRank) * spacing;
+        var behind = -FacingToCellDirection(currentFacingDirection);
+        if (behind == Vector3Int.zero)
+            behind = Vector3Int.down;
+        var side = new Vector3Int(-behind.y, behind.x, 0);
+
+        for (int distance = targetDistance; distance <= 12; distance++)
+        {
+            int[] sideOffsets = { 0, 1, -1, 2, -2, 3, -3 };
+            for (int i = 0; i < sideOffsets.Length; i++)
+            {
+                var cell = currentFinalTargetCell + behind * distance + side * sideOffsets[i];
+                if (cell == currentFinalTargetCell) continue;
+                if (IsWalkable(cell) && !AgentCrowdCoordinator.IsDynamicallyBlocked(cell, this, agentAvoidanceCellPadding))
+                    return cell;
+            }
+        }
+
+        return FindNearestQueueWaitCell(Mathf.Max(0, queueRank - 1));
+    }
+
+    Vector3Int FindNearestQueueWaitCell(int candidateIndex)
+    {
+        var q = new Queue<Vector3Int>();
+        var visited = new HashSet<Vector3Int> { currentFinalTargetCell };
+        q.Enqueue(currentFinalTargetCell);
+
+        Vector3Int[] dirs = { Vector3Int.down, Vector3Int.right, Vector3Int.left, Vector3Int.up };
+        var candidates = new List<Vector3Int>();
+
+        while (q.Count > 0)
+        {
+            var cur = q.Dequeue();
+            foreach (var d in dirs)
+            {
+                var n = cur + d;
+                if (!visited.Add(n)) continue;
+
+                int r = Mathf.Abs(n.x - currentFinalTargetCell.x) + Mathf.Abs(n.y - currentFinalTargetCell.y);
+                if (r > 12) continue;
+
+                if (IsWalkable(n) && !AgentCrowdCoordinator.IsDynamicallyBlocked(n, this, agentAvoidanceCellPadding))
+                {
+                    candidates.Add(n);
+                    if (candidates.Count > candidateIndex)
+                        return candidates[candidateIndex];
+                }
+                q.Enqueue(n);
+            }
+        }
+
+        return grid.WorldToCell(transform.position);
+    }
+
+    Vector3Int FacingToCellDirection(int direction)
+    {
+        switch (direction)
+        {
+            case 1:
+                return Vector3Int.up;
+            case 2:
+                return Vector3Int.right;
+            case 3:
+                return Vector3Int.down;
+            case 4:
+                return Vector3Int.left;
+            default:
+                return Vector3Int.zero;
+        }
     }
 
     void ApplyFacingDirection(int direction)
@@ -425,6 +693,8 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
     {
         if (!hasGoal) return;
 
+        AgentCrowdCoordinator.ReleaseStepReservation(this);
+        hasStepReservation = false;
         var startCell = grid.WorldToCell(transform.position);
         var goalCell = currentGoalCell;
         if (!IsWalkable(goalCell))
@@ -433,12 +703,16 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
             currentGoalCell = goalCell;
         }
 
-        var path = AStar(startCell, goalCell);
+        var avoidAgents = !CanPassThroughAgents();
+        var path = AStar(startCell, goalCell, avoidAgents);
+        if ((path == null || path.Count == 0) && avoidAgents && TryEnableAgentPassThrough(startCell, goalCell))
+            return;
         if (path != null && path.Count > 0)
         {
             pathCells.Clear();
             pathCells.AddRange(path);
             pathIndex = 0;
+            reservationWaitTimer = 0f;
             NextStep();
         }
     }
@@ -459,6 +733,20 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
     {
         if (idleMoving)
         {
+            var currentCell = grid.WorldToCell(transform.position);
+            if (idleTargetCell != currentCell && !hasStepReservation)
+            {
+                if (!AgentCrowdCoordinator.TryReserveStep(this, currentCell, idleTargetCell, agentAvoidanceCellPadding))
+                {
+                    autoMove = Vector2.zero;
+                    idleMoving = false;
+                    ScheduleNextIdleMove();
+                    return;
+                }
+                hasStepReservation = true;
+                reservedStepCell = idleTargetCell;
+            }
+
             var targetWorld = grid.GetCellCenterWorld(idleTargetCell);
             targetWorld.z = 0f;
             Vector2 dir = (Vector2)(targetWorld - transform.position);
@@ -468,6 +756,8 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
             {
                 if (rb != null) rb.position = targetWorld;
                 else transform.position = targetWorld;
+                AgentCrowdCoordinator.CommitStep(this, idleTargetCell);
+                hasStepReservation = false;
                 idleMoving = false;
                 autoMove = Vector2.zero;
                 ScheduleNextIdleMove();
@@ -497,7 +787,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         foreach (var d in dirs)
         {
             var cell = currentCell + d;
-            if (IsWalkable(cell))
+            if (IsWalkable(cell) && !AgentCrowdCoordinator.IsDynamicallyBlocked(cell, this, agentAvoidanceCellPadding))
                 walkableNeighbors.Add(cell);
         }
 
@@ -514,6 +804,8 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
 
     void StopIdleWander()
     {
+        AgentCrowdCoordinator.ReleaseStepReservation(this);
+        hasStepReservation = false;
         idleMoving = false;
         autoMove = Vector2.zero;
     }
@@ -583,7 +875,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         return false;
     }
 
-    List<Vector3Int> AStar(Vector3Int start, Vector3Int goal)
+    List<Vector3Int> AStar(Vector3Int start, Vector3Int goal, bool avoidAgents = false)
     {
         var open = new List<Vector3Int> { start };
         var came = new Dictionary<Vector3Int, Vector3Int>();
@@ -606,6 +898,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
             {
                 var nx = cur + d;
                 if (!IsWalkable(nx)) continue;
+                if (avoidAgents && nx != goal && AgentCrowdCoordinator.IsDynamicallyBlocked(nx, this, agentAvoidanceCellPadding)) continue;
 
                 int candG = g[cur] + 1;
                 if (!g.ContainsKey(nx) || candG < g[nx])
@@ -670,6 +963,8 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
             transform.position = targetPosition;
         }
         Physics2D.SyncTransforms();
+        if (grid != null)
+            AgentCrowdCoordinator.SyncCell(this, grid.WorldToCell(transform.position));
         lastPos = transform.position;
         if (vcam != null)
         {

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -626,77 +625,6 @@ public sealed partial class ShopAssistantDisplayUI
         RefreshStockControlsInteractable();
     }
 
-    private void ShowStockSuccessToast()
-    {
-        EnsureStockSuccessToast();
-        if (stockSuccessToastCanvasGroup == null || stockSuccessToastRect == null)
-        {
-            return;
-        }
-
-        if (stockSuccessToastRoutine != null)
-        {
-            StopCoroutine(stockSuccessToastRoutine);
-        }
-
-        stockSuccessToastRoutine = StartCoroutine(PlayStockSuccessToast());
-    }
-
-    private void EnsureStockSuccessToast()
-    {
-        if (stockSuccessToastCanvasGroup != null || uiRootRect == null)
-        {
-            return;
-        }
-
-        var toast = new GameObject("StockSuccessToast", typeof(RectTransform), typeof(CanvasGroup), typeof(Image));
-        toast.transform.SetParent(uiRootRect, false);
-        stockSuccessToastRect = (RectTransform)toast.transform;
-        stockSuccessToastRect.anchorMin = new Vector2(0.5f, 0.5f);
-        stockSuccessToastRect.anchorMax = new Vector2(0.5f, 0.5f);
-        stockSuccessToastRect.pivot = new Vector2(0.5f, 0.5f);
-        stockSuccessToastRect.sizeDelta = new Vector2(240f, 64f);
-        stockSuccessToastRect.anchoredPosition = new Vector2(0f, 44f);
-
-        var image = toast.GetComponent<Image>();
-        image.color = new Color(0.05f, 0.05f, 0.04f, 0.72f);
-        image.raycastTarget = false;
-
-        stockSuccessToastCanvasGroup = toast.GetComponent<CanvasGroup>();
-        stockSuccessToastCanvasGroup.alpha = 0f;
-        stockSuccessToastCanvasGroup.blocksRaycasts = false;
-        stockSuccessToastCanvasGroup.interactable = false;
-        toast.SetActive(false);
-
-        var label = CreateTMPText("Label", toast.transform, "进货成功！", 30f, FontStyles.Bold, TextAlignmentOptions.Center);
-        label.color = Color.white;
-        StretchText(label, 10f);
-    }
-
-    private IEnumerator PlayStockSuccessToast()
-    {
-        stockSuccessToastCanvasGroup.gameObject.SetActive(true);
-        stockSuccessToastCanvasGroup.transform.SetAsLastSibling();
-        Vector2 startPos = new Vector2(0f, 32f);
-        Vector2 endPos = new Vector2(0f, 120f);
-        stockSuccessToastRect.anchoredPosition = startPos;
-
-        const float duration = 2.0f;
-        float elapsed = 0f;
-        while (elapsed < duration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-            stockSuccessToastCanvasGroup.alpha = t < 0.18f ? Mathf.SmoothStep(0f, 1f, t / 0.18f) : Mathf.SmoothStep(1f, 0f, Mathf.InverseLerp(0.72f, 1f, t));
-            stockSuccessToastRect.anchoredPosition = Vector2.Lerp(startPos, endPos, Mathf.SmoothStep(0f, 1f, t));
-            yield return null;
-        }
-
-        stockSuccessToastCanvasGroup.alpha = 0f;
-        stockSuccessToastCanvasGroup.gameObject.SetActive(false);
-        stockSuccessToastRoutine = null;
-    }
-
     private void SubmitStockPlan()
     {
         if (!canEditStockPlan)
@@ -726,7 +654,6 @@ public sealed partial class ShopAssistantDisplayUI
 
         string payload = BuildStockPlanUpdateJson();
         WsAgentClient.SubmitShopStockUpdateJson(payload);
-        ShowStockSuccessToast();
         SetInventoryVisible(false);
         Debug.Log($"[ShopAssistantUI] Stock plan submitted: {payload}");
     }
