@@ -20,8 +20,8 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
     private const int FirstRoundIndex = 1;
 
     [Header("Display")]
-    [SerializeField] [Range(0, 7)] private int targetDisplay = 5; // Display6 (0-based index)
-    [SerializeField] private string displayCanvasNameHint = "Display6";
+    [SerializeField] [Range(0, 7)] private int targetDisplay = 0; // Display1 (0-based index)
+    [SerializeField] private string displayCanvasNameHint = "Display1";
     [SerializeField] private int baseResolutionX = 1920;
     [SerializeField] private int baseResolutionY = 1080;
 
@@ -49,63 +49,63 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
 
     [Header("Inventory Background")]
     [SerializeField] private string inventoryBackgroundResourcePath = "Art/UI/UI/ShopAssistantUI/背景";
-    [SerializeField] private string inventoryBackgroundAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/背景.png";
+    [SerializeField] private string inventoryBackgroundAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/背景.png";
     [SerializeField] private string inventoryBackgroundSpriteName = "背景";
 
     [Header("Inventory Decorations")]
     [SerializeField] private string statusPanelResourcePath = "Art/UI/UI/ShopAssistantUI/状态面板";
-    [SerializeField] private string statusPanelAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/状态面板.png";
+    [SerializeField] private string statusPanelAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/状态面板.png";
     [SerializeField] private string statusPanelSpriteName = "状态面板";
     [SerializeField] private string inventoryTitleResourcePath = "Art/UI/UI/ShopAssistantUI/商店库存标头";
-    [SerializeField] private string inventoryTitleAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/商店库存标头.png";
+    [SerializeField] private string inventoryTitleAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/商店库存标头.png";
     [SerializeField] private string inventoryTitleSpriteName = "商店库存标头";
     [SerializeField] private string inventoryOpenButtonResourcePath = "Art/UI/UI/ShopAssistantUI/查看库存";
-    [SerializeField] private string inventoryOpenButtonAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/查看库存.png";
+    [SerializeField] private string inventoryOpenButtonAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/查看库存.png";
     [SerializeField] private string inventoryOpenButtonSpriteName = "查看库存";
     [SerializeField] private string inventoryStockButtonResourcePath = "Art/UI/UI/ShopAssistantUI/进货";
-    [SerializeField] private string inventoryStockButtonAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/进货.png";
+    [SerializeField] private string inventoryStockButtonAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/进货.png";
     [SerializeField] private string inventoryStockButtonSpriteName = "进货按钮";
     [SerializeField] private string inventoryRightPanelResourcePath = "Art/UI/UI/ShopAssistantUI/右侧背景板";
-    [SerializeField] private string inventoryRightPanelAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/右侧背景板.png";
+    [SerializeField] private string inventoryRightPanelAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/右侧背景板.png";
     [SerializeField] private string inventoryRightPanelSpriteName = "右侧背景板";
     [SerializeField] private string inventoryShopLogoResourcePath = "Art/UI/UI/ShopAssistantUI/商店图案";
-    [SerializeField] private string inventoryShopLogoAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/商店图案.png";
+    [SerializeField] private string inventoryShopLogoAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/商店图案.png";
     [SerializeField] private string inventoryShopLogoSpriteName = "商店图案";
     [SerializeField] private string inventoryCoinFeatherResourcePath = "Art/UI/UI/ShopAssistantUI/金币和羽毛";
-    [SerializeField] private string inventoryCoinFeatherAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/金币和羽毛.png";
+    [SerializeField] private string inventoryCoinFeatherAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/金币和羽毛.png";
     [SerializeField] private string inventoryCoinSpriteName = "金币";
     [SerializeField] private string inventoryFeatherSpriteName = "羽毛";
     [SerializeField] private string inventoryHintPanelResourcePath = "Art/UI/UI/ShopAssistantUI/右下提示背景板";
-    [SerializeField] private string inventoryHintPanelAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/右下提示背景板.png";
+    [SerializeField] private string inventoryHintPanelAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/右下提示背景板.png";
     [SerializeField] private string inventoryHintPanelSpriteName = "右下提示背景板";
     [SerializeField] private string inventoryProductCellBgResourcePath = "Art/UI/UI/ShopAssistantUI/商品背景板";
-    [SerializeField] private string inventoryProductCellBgAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/商品背景板.png";
+    [SerializeField] private string inventoryProductCellBgAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/商品背景板.png";
     [SerializeField] private string inventoryProductCellBgSpriteName = "商品背景板";
     [SerializeField] private string inventoryNameBannerResourcePath = "Art/UI/UI/ShopAssistantUI/文字背景框";
-    [SerializeField] private string inventoryNameBannerAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/文字背景框.png";
+    [SerializeField] private string inventoryNameBannerAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/文字背景框.png";
     [SerializeField] private string inventoryStepperButtonResourcePath = "Art/UI/UI/ShopAssistantUI/加减按钮";
-    [SerializeField] private string inventoryStepperButtonAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/加减按钮.png";
+    [SerializeField] private string inventoryStepperButtonAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/加减按钮.png";
     [SerializeField] private string inventoryStepperMinusSpriteName = "减号";
     [SerializeField] private string inventoryStepperPlusSpriteName = "加号";
     [SerializeField] private string inventoryCloseButtonResourcePath = "Art/UI/UI/ShopAssistantUI/关闭按钮";
-    [SerializeField] private string inventoryCloseButtonAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/关闭按钮.png";
+    [SerializeField] private string inventoryCloseButtonAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/关闭按钮.png";
     [SerializeField] private string inventoryCloseButtonSpriteName = "关闭按钮";
 
     [Header("Message Feed")]
     [SerializeField] private string messageBubbleResourcePath = "Art/UI/UI/ShopAssistantUI/消息栏";
-    [SerializeField] private string messageBubbleAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/消息栏.png";
+    [SerializeField] private string messageBubbleAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/消息栏.png";
     [SerializeField] private string messageBubbleSpriteName = "消息栏深色";
     [SerializeField] private string messageSourceFrameResourcePath = "Art/UI/UI/ShopAssistantUI/UI补丁";
-    [SerializeField] private string messageSourceFrameAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/UI补丁.png";
+    [SerializeField] private string messageSourceFrameAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/UI补丁.png";
 
     [Header("Player Panel")]
     [SerializeField] private string playerUiResourcePath = "Art/UI/UI/ShopAssistantUI/玩家UI";
-    [SerializeField] private string playerUiAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/玩家UI.png";
+    [SerializeField] private string playerUiAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/玩家UI.png";
     [SerializeField] private string playerAvatarSelectedSpriteName = "头像底框1";
     [SerializeField] private string playerAvatarNormalSpriteName = "头像底框2";
     [SerializeField] private string playerPanelBackgroundSpriteName = "玩家UI背景板";
     [SerializeField] private string playerAvatarBackgroundResourcePath = "Art/UI/UI/ShopAssistantUI/头像背景";
-    [SerializeField] private string playerAvatarBackgroundAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/头像背景.png";
+    [SerializeField] private string playerAvatarBackgroundAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/头像背景.png";
     [SerializeField] private string[] playerAvatarBackgroundSpriteNames =
     {
         "头像背景蓝",
@@ -121,7 +121,7 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
         "石老谋（奸商）"
     };
     [SerializeField] private string playerUiPatchResourcePath = "Art/UI/UI/ShopAssistantUI/UI补丁";
-    [SerializeField] private string playerUiPatchAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/UI补丁.png";
+    [SerializeField] private string playerUiPatchAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/UI补丁.png";
     [SerializeField] private string playerHpFrameSpriteName = "血条框";
     [SerializeField] private string[] playerAttributeIconSpriteNames =
     {
@@ -145,10 +145,10 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
     };
     [SerializeField] private string[] playerAvatarAssetPaths =
     {
-        "Assets/Art/Characters/Characters/Character1.png",
-        "Assets/Art/Characters/Characters/character2.png",
-        "Assets/Art/Characters/Characters/character3.png",
-        "Assets/Art/Characters/Characters/character4.png"
+        "Assets/Resources/Art/Characters/Characters/Character1.png",
+        "Assets/Resources/Art/Characters/Characters/character2.png",
+        "Assets/Resources/Art/Characters/Characters/character3.png",
+        "Assets/Resources/Art/Characters/Characters/character4.png"
     };
     [SerializeField] private string[] playerAvatarSpriteNames =
     {
@@ -160,11 +160,11 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
 
     [Header("Round Transition")]
     [SerializeField] private string roundStartResourcePath = "Art/UI/UI/ShopAssistantUI/回合开始";
-    [SerializeField] private string roundStartAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/回合开始.png";
+    [SerializeField] private string roundStartAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/回合开始.png";
     [SerializeField] private string roundStartSpriteName = "回合开始";
     [SerializeField] private Key roundStartDebugKey = Key.B;
     [SerializeField] private string roundEndResourcePath = "Art/UI/UI/ShopAssistantUI/回合结束";
-    [SerializeField] private string roundEndAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/回合结束.png";
+    [SerializeField] private string roundEndAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/回合结束.png";
     [SerializeField] private string roundEndSpriteName = "回合结束";
     [SerializeField] private Key roundEndDebugKey = Key.E;
     [SerializeField] private float roundStartIntroSeconds = 0.32f;
@@ -252,7 +252,7 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
             return;
         }
 
-        var root = new GameObject("UI_ShopAssistant_Display6");
+        var root = new GameObject("UI_ShopAssistant_Display1");
         root.AddComponent<ShopAssistantDisplayUI>();
     }
 
@@ -264,7 +264,7 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
             return ui;
         }
 
-        var root = new GameObject("UI_ShopAssistant_Display6");
+        var root = new GameObject("UI_ShopAssistant_Display1");
         return root.AddComponent<ShopAssistantDisplayUI>();
     }
 
@@ -533,7 +533,7 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
         {
             foreach (var s in sprites)
             {
-                if (s != null && string.Equals(s.name, spriteName.Trim(), StringComparison.Ordinal))
+                if (s != null && SpriteNameMatches(s.name, spriteName))
                 {
                     return s;
                 }
@@ -542,13 +542,26 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
 
         foreach (var s in sprites)
         {
-            if (s != null && string.Equals(s.name, productName, StringComparison.Ordinal))
+            if (s != null && SpriteNameMatches(s.name, productName))
             {
                 return s;
             }
         }
 
-        return null;
+        return sprites.Length == 1 ? sprites[0] : null;
+    }
+
+    private static bool SpriteNameMatches(string actualName, string requestedName)
+    {
+        if (string.IsNullOrWhiteSpace(actualName) || string.IsNullOrWhiteSpace(requestedName))
+        {
+            return false;
+        }
+
+        var trimmed = requestedName.Trim();
+        return string.Equals(actualName, trimmed, StringComparison.Ordinal)
+            || string.Equals(actualName, $"{trimmed}_0", StringComparison.Ordinal)
+            || actualName.StartsWith($"{trimmed}_", StringComparison.Ordinal);
     }
 
     private TMP_FontAsset TryCreateDynamicChineseFont()
@@ -652,17 +665,8 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
 
         foreach (var existing in allCanvases)
         {
-            if (existing != null && existing.targetDisplay == targetDisplay)
-            {
-                EnsureCanvasInputComponents(existing);
-                return existing;
-            }
-        }
-
-        foreach (var existing in allCanvases)
-        {
             if (existing == null) continue;
-            if (IsDisplay6NamedCanvas(existing.gameObject))
+            if (IsDisplay1NamedCanvas(existing.gameObject))
             {
                 existing.targetDisplay = targetDisplay;
                 EnsureCanvasInputComponents(existing);
@@ -670,7 +674,7 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
             }
         }
 
-        var displayObject = FindDisplay6NamedObject();
+        var displayObject = FindDisplay1NamedObject();
         if (displayObject != null)
         {
             var existing = displayObject.GetComponentInChildren<Canvas>(true);
@@ -690,7 +694,7 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
             return added;
         }
 
-        var canvasGo = new GameObject("ShopAssistantCanvas_Display6", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        var canvasGo = new GameObject("ShopAssistantCanvas_Display1", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         canvasGo.transform.SetParent(transform, false);
 
         var canvas = canvasGo.GetComponent<Canvas>();
@@ -706,19 +710,19 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
         return canvas;
     }
 
-    private bool IsDisplay6NamedCanvas(GameObject go)
+    private bool IsDisplay1NamedCanvas(GameObject go)
     {
         if (go == null) return false;
-        if (NameMatchesDisplay6(go.name)) return true;
+        if (NameMatchesDisplay1(go.name)) return true;
         var parent = go.transform.parent;
-        return parent != null && NameMatchesDisplay6(parent.name);
+        return parent != null && NameMatchesDisplay1(parent.name);
     }
 
-    private GameObject FindDisplay6NamedObject()
+    private GameObject FindDisplay1NamedObject()
     {
         foreach (var t in FindObjectsOfType<Transform>(true))
         {
-            if (t != null && NameMatchesDisplay6(t.name))
+            if (t != null && NameMatchesDisplay1(t.name))
             {
                 return t.gameObject;
             }
@@ -727,7 +731,7 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
         return null;
     }
 
-    private bool NameMatchesDisplay6(string objectName)
+    private bool NameMatchesDisplay1(string objectName)
     {
         if (string.IsNullOrEmpty(objectName))
         {
@@ -735,7 +739,7 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
         }
 
         var lowered = objectName.ToLowerInvariant();
-        return lowered.Contains(displayCanvasNameHint.ToLowerInvariant()) || lowered.Contains("display 6");
+        return lowered.Contains(displayCanvasNameHint.ToLowerInvariant()) || lowered.Contains("display 1");
     }
 
     private void EnsureCanvasInputComponents(Canvas canvas)

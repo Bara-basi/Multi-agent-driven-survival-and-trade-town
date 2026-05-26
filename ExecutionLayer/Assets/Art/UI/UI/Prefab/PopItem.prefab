@@ -141,6 +141,7 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  iconDisplaySize: {x: 2, y: 2}
   laneIndex: 0
 --- !u!1 &7136515068859483715
 GameObject:
@@ -309,8 +310,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 1.69
-  m_fontSizeBase: 1.69
+  m_fontSize: 1.4
+  m_fontSizeBase: 1.4
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18

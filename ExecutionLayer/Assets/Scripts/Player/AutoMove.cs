@@ -73,6 +73,10 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
     public float repathIfBlockedAfterSec = 0.5f;
     public float hardStuckAfterSec = 2f;
     public int hardStuckSnapRadius = 2;
+    [Min(256)]
+    public int maxPathSearchNodes = 4096;
+    [Min(16)]
+    public int maxPathSearchDistance = 96;
     private readonly List<Vector3Int> pathCells = new();
     private int pathIndex = 0;
     private float stuckTimer = 0f;
@@ -881,11 +885,21 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
         var came = new Dictionary<Vector3Int, Vector3Int>();
         var g = new Dictionary<Vector3Int, int> { [start] = 0 };
         var f = new Dictionary<Vector3Int, int> { [start] = Heu(start, goal) };
+        var closed = new HashSet<Vector3Int>();
+        int searchNodeLimit = Mathf.Max(256, maxPathSearchNodes);
+        int searchDistanceLimit = Mathf.Max(16, maxPathSearchDistance, Heu(start, goal) + 16);
+        int expandedNodes = 0;
 
         Vector3Int[] dirs = { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right };
 
         while (open.Count > 0)
         {
+            if (++expandedNodes > searchNodeLimit)
+            {
+                Debug.LogWarning($"{name} AStar aborted after {searchNodeLimit} nodes. start={start}, goal={goal}, avoidAgents={avoidAgents}");
+                return null;
+            }
+
             int best = 0;
             for (int i = 1; i < open.Count; i++)
                 if (f[open[i]] < f[open[best]]) best = i;
@@ -893,10 +907,13 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
             var cur = open[best];
             if (cur == goal) return Reconstruct(came, cur);
             open.RemoveAt(best);
+            closed.Add(cur);
 
             foreach (var d in dirs)
             {
                 var nx = cur + d;
+                if (closed.Contains(nx)) continue;
+                if (Heu(start, nx) > searchDistanceLimit && Heu(goal, nx) > searchDistanceLimit) continue;
                 if (!IsWalkable(nx)) continue;
                 if (avoidAgents && nx != goal && AgentCrowdCoordinator.IsDynamicallyBlocked(nx, this, agentAvoidanceCellPadding)) continue;
 

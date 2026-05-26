@@ -4837,7 +4837,7 @@ Canvas:
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 836815141
   m_SortingOrder: 0
-  m_TargetDisplay: 4
+  m_TargetDisplay: 0
 --- !u!114 &295338625
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -69177,7 +69177,7 @@ Camera:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 567233165}
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
   m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
@@ -69212,7 +69212,7 @@ Camera:
     m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 2
+  m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
   m_AllowMSAA: 0
@@ -80384,7 +80384,7 @@ Canvas:
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 836815141
   m_SortingOrder: 0
-  m_TargetDisplay: 3
+  m_TargetDisplay: 0
 --- !u!212 &818333773
 SpriteRenderer:
   serializedVersion: 2
@@ -81112,7 +81112,7 @@ Canvas:
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 836815141
   m_SortingOrder: 50
-  m_TargetDisplay: 1
+  m_TargetDisplay: 0
 --- !u!1 &857194933
 GameObject:
   m_ObjectHideFlags: 0
@@ -81269,7 +81269,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MultiDisplayActivator
   extraDisplaysToActivate: 4
-  ensureDisplayIndex: 4
+  ensureDisplayIndex: 5
 --- !u!1 &866753579
 GameObject:
   m_ObjectHideFlags: 0
@@ -86549,7 +86549,7 @@ Canvas:
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 836815141
   m_SortingOrder: 50
-  m_TargetDisplay: 1
+  m_TargetDisplay: 0
 --- !u!1 &1043947175
 GameObject:
   m_ObjectHideFlags: 0
@@ -87321,7 +87321,7 @@ GameObject:
   - component: {fileID: 1083454732}
   m_Layer: 0
   m_Name: Camera_FullDisplay
-  m_TagString: MainCamera
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -87467,7 +87467,7 @@ Camera:
     m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 0
+  m_TargetDisplay: 5
   m_TargetEye: 3
   m_HDR: 1
   m_AllowMSAA: 0
@@ -496930,7 +496930,7 @@ Camera:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1266886835}
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
   m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
@@ -496965,7 +496965,7 @@ Camera:
     m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 1
+  m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
   m_AllowMSAA: 0
@@ -507313,7 +507313,7 @@ Canvas:
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 836815141
   m_SortingOrder: 50
-  m_TargetDisplay: 1
+  m_TargetDisplay: 0
 --- !u!1 &1320263041
 GameObject:
   m_ObjectHideFlags: 0
@@ -520669,7 +520669,7 @@ Camera:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1598480389}
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
   m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
@@ -520704,7 +520704,7 @@ Camera:
     m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 3
+  m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
   m_AllowMSAA: 0
@@ -551796,7 +551796,7 @@ Camera:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1781553462}
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
   m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
@@ -551831,7 +551831,7 @@ Camera:
     m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 4
+  m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
   m_AllowMSAA: 0
@@ -568262,7 +568262,7 @@ Canvas:
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 836815141
   m_SortingOrder: 0
-  m_TargetDisplay: 2
+  m_TargetDisplay: 0
 --- !u!212 &1804343465
 SpriteRenderer:
   serializedVersion: 2
@@ -590239,7 +590239,7 @@ Canvas:
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 836815141
   m_SortingOrder: 50
-  m_TargetDisplay: 1
+  m_TargetDisplay: 0
 --- !u!114 &1971764942
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -593328,7 +593328,7 @@ Canvas:
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 836815141
   m_SortingOrder: 0
-  m_TargetDisplay: 1
+  m_TargetDisplay: 0
 --- !u!95 &8719860952709850938
 Animator:
   serializedVersion: 7

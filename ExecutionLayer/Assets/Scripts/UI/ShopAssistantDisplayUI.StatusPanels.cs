@@ -72,7 +72,7 @@ public sealed partial class ShopAssistantDisplayUI
         root.anchorMin = new Vector2(0f, 0f);
         root.anchorMax = new Vector2(0f, 0f);
         root.pivot = new Vector2(0f, 0f);
-        root.sizeDelta = new Vector2(512f, 246f);
+        root.sizeDelta = new Vector2(532f, 492f);
         root.anchoredPosition = new Vector2(30f, 30f);
 
         var rootImage = rootGo.GetComponent<Image>();
@@ -116,7 +116,7 @@ public sealed partial class ShopAssistantDisplayUI
     private void AddDebugBroadcastMessages()
     {
         AddBroadcastMessage("系统", "回合开始");
-        AddBroadcastMessage("随机事件", "雨天：今日出门额外消耗5点体力");
+        AddBroadcastMessage("随机事件", "雨天:今日移动额外消耗5体力");
         AddBroadcastMessage("商店", "今日面包已售罄");
         AddBroadcastMessage("广播", "江凡在河边钓到了15斤的大鱼，售价1500！");
         AddBroadcastMessage("林墨墨", "去商店看看好了");
@@ -129,9 +129,9 @@ public sealed partial class ShopAssistantDisplayUI
             return;
         }
 
-        const float messageBodyWidth = 340f;
-        const float messageBodyFontSize = 24f;
-        const float defaultRowHeight = 64f;
+        const float messageBodyWidth = 360f;
+        const float messageBodyFontSize = 26f;
+        const float defaultRowHeight = 68f;
 
         var rowGo = new GameObject($"Message_{++messageFeedCount}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
         rowGo.transform.SetParent(messageFeedContent, false);
@@ -147,10 +147,9 @@ public sealed partial class ShopAssistantDisplayUI
         rowImage.sprite = messageBubbleSprite;
         rowImage.type = Image.Type.Simple;
         rowImage.preserveAspect = false;
-        rowImage.color = messageBubbleSprite != null ? new Color(1f, 1f, 1f, 0.66f) : new Color(0.10f, 0.10f, 0.11f, 0.52f);
+        rowImage.color = messageBubbleSprite != null ? new Color(1f, 1f, 1f, 0.30f) : new Color(0.10f, 0.10f, 0.11f, 0.24f);
         rowImage.raycastTarget = false;
 
-        BuildBroadcastSourceBadge(row, source);
         var body = BuildBroadcastBodyText(row, message);
         float bodyHeight = Mathf.Ceil(body.GetPreferredValues(message, messageBodyWidth, 0f).y);
         bool singleLine = bodyHeight <= messageBodyFontSize * 1.55f;
@@ -158,6 +157,7 @@ public sealed partial class ShopAssistantDisplayUI
         row.sizeDelta = new Vector2(0f, rowHeight);
         layoutElement.minHeight = rowHeight;
         layoutElement.preferredHeight = rowHeight;
+        BuildBroadcastSourceBadge(row, source);
         ConfigureBroadcastBodyTextRect(body.rectTransform, singleLine);
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(messageFeedContent);
@@ -210,11 +210,11 @@ public sealed partial class ShopAssistantDisplayUI
         var badgeGo = new GameObject("SourceBadge", typeof(RectTransform), typeof(Image));
         badgeGo.transform.SetParent(parent, false);
         var badge = (RectTransform)badgeGo.transform;
-        badge.anchorMin = new Vector2(0f, 1f);
-        badge.anchorMax = new Vector2(0f, 1f);
-        badge.pivot = new Vector2(0f, 1f);
-        badge.sizeDelta = new Vector2(108f, 40f);
-        badge.anchoredPosition = new Vector2(10f, -13f);
+        badge.anchorMin = new Vector2(0f, 0.5f);
+        badge.anchorMax = new Vector2(0f, 0.5f);
+        badge.pivot = new Vector2(0f, 0.5f);
+        badge.sizeDelta = new Vector2(112f, 44f);
+        badge.anchoredPosition = new Vector2(10f, 0f);
 
         var badgeImage = badgeGo.GetComponent<Image>();
         badgeImage.sprite = frameSprite;
@@ -223,12 +223,12 @@ public sealed partial class ShopAssistantDisplayUI
         badgeImage.color = frameSprite != null ? Color.white : ResolveBroadcastSourceFallbackColor(source);
         badgeImage.raycastTarget = false;
 
-        CreateOutlinedBadgeText(badge, source, ResolveBroadcastSourceTextColor(source));
+        CreateBadgeText(badge, source, ResolveBroadcastSourceTextColor(source));
     }
 
     private TextMeshProUGUI BuildBroadcastBodyText(RectTransform parent, string message)
     {
-        var body = CreateTMPText("Body", parent, message, 24f, FontStyles.Bold, TextAlignmentOptions.TopLeft);
+        var body = CreateTMPText("Body", parent, message, 26f, FontStyles.Bold, TextAlignmentOptions.MidlineLeft);
         body.color = new Color(0.93f, 0.91f, 0.86f, 1f);
         body.enableAutoSizing = false;
         body.enableWordWrapping = true;
@@ -245,8 +245,8 @@ public sealed partial class ShopAssistantDisplayUI
         bodyRt.pivot = new Vector2(0f, singleLine ? 0.5f : 1f);
         if (singleLine)
         {
-            bodyRt.sizeDelta = new Vector2(-152f, 36f);
-            bodyRt.anchoredPosition = new Vector2(132f, -4f);
+            bodyRt.sizeDelta = new Vector2(-152f, 44f);
+            bodyRt.anchoredPosition = new Vector2(132f, -3f);
         }
         else
         {
@@ -255,31 +255,8 @@ public sealed partial class ShopAssistantDisplayUI
         }
     }
 
-    private void CreateOutlinedBadgeText(RectTransform badge, string source, Color textColor)
+    private void CreateBadgeText(RectTransform badge, string source, Color textColor)
     {
-        Vector2[] offsets =
-        {
-            new Vector2(-1.4f, 0f),
-            new Vector2(1.4f, 0f),
-            new Vector2(0f, -1.4f),
-            new Vector2(0f, 1.4f),
-            new Vector2(-1f, -1f),
-            new Vector2(-1f, 1f),
-            new Vector2(1f, -1f),
-            new Vector2(1f, 1f)
-        };
-
-        foreach (var offset in offsets)
-        {
-            var outline = CreateTMPText("LabelOutline", badge, source, 20f, FontStyles.Bold, TextAlignmentOptions.Center);
-            outline.color = Color.white;
-            outline.enableWordWrapping = false;
-            outline.overflowMode = TextOverflowModes.Ellipsis;
-            ApplyTextFaceDilate(outline, -0.05f);
-            StretchText(outline, 6f);
-            outline.rectTransform.anchoredPosition += offset;
-        }
-
         var label = CreateTMPText("Label", badge, source, 20f, FontStyles.Bold, TextAlignmentOptions.Center);
         label.color = textColor;
         label.enableWordWrapping = false;
@@ -331,11 +308,11 @@ public sealed partial class ShopAssistantDisplayUI
         string spriteName = ResolveBroadcastSourceFrameSpriteName(source);
         return spriteName switch
         {
-            "黄框" => new Color(0.70f, 0.43f, 0.03f, 1f),
-            "绿框" => new Color(0.12f, 0.55f, 0.16f, 1f),
-            "紫框" => new Color(0.48f, 0.25f, 0.72f, 1f),
-            "红框" => new Color(0.72f, 0.16f, 0.14f, 1f),
-            _ => new Color(0.16f, 0.42f, 0.76f, 1f)
+            "黄框" => new Color(1.00f, 0.92f, 0.18f, 1f),
+            "绿框" => new Color(0.44f, 0.95f, 0.32f, 1f),
+            "紫框" => new Color(0.78f, 0.50f, 1.00f, 1f),
+            "红框" => new Color(1.00f, 0.38f, 0.32f, 1f),
+            _ => new Color(0.42f, 0.78f, 1.00f, 1f)
         };
     }
 

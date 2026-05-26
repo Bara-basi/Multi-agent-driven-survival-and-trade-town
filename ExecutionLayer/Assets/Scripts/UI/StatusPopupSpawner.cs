@@ -13,8 +13,8 @@ public class StatusPopupSpawner : MonoBehaviour
     public int maxActive = 16;
 
     [Header("Style")]
-    public Color positiveColor = new Color(0.2f, 0.9f, 0.3f);
-    public Color negativeColor = new Color(0.95f, 0.2f, 0.2f);
+    public Color positiveColor = new Color(0.18f, 0.95f, 0.28f, 1f);
+    public Color negativeColor = new Color(0.95f, 0.18f, 0.16f, 1f);
     public float riseDistance = 6f;    // 上飘高度（与 PopItem 保持一致）
 
     private readonly Queue<PopItem> _pool = new Queue<PopItem>();

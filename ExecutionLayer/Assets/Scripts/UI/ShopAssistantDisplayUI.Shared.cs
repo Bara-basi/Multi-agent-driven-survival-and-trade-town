@@ -261,7 +261,7 @@ public sealed partial class ShopAssistantDisplayUI
                 }
 
                 var trimmed = spriteName.Trim();
-                if (string.Equals(s.name, trimmed, StringComparison.Ordinal))
+                if (SpriteNameMatches(s.name, trimmed))
                 {
                     return s;
                 }

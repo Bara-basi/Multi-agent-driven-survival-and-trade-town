@@ -15,8 +15,8 @@ using UnityEditor;
 public sealed class GameEndFailureUI : MonoBehaviour
 {
     [Header("Display")]
-    [SerializeField] [Range(0, 7)] private int targetDisplay = 5;
-    [SerializeField] private string displayCanvasNameHint = "Display6";
+    [SerializeField] [Range(0, 7)] private int targetDisplay = 0;
+    [SerializeField] private string displayCanvasNameHint = "Display1";
     [SerializeField] private int baseResolutionX = 1920;
     [SerializeField] private int baseResolutionY = 1080;
     [SerializeField] private bool showOnStart;
@@ -24,30 +24,30 @@ public sealed class GameEndFailureUI : MonoBehaviour
 
     [Header("Sprites")]
     [SerializeField] private string failureTitleResourcePath = "Art/UI/UI/ShopAssistantUI/游戏结束";
-    [SerializeField] private string failureTitleAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/游戏结束.png";
+    [SerializeField] private string failureTitleAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/游戏结束.png";
     [SerializeField] private string failureTitleSpriteName = "游戏结束";
     [SerializeField] private string panelResourcePath = "Art/UI/UI/ShopAssistantUI/失败背景板";
-    [SerializeField] private string panelAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/失败背景板.png";
+    [SerializeField] private string panelAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/失败背景板.png";
     [SerializeField] private string panelTopSpriteName = "背景框上片";
     [SerializeField] private string panelMiddleSpriteName = "背景框中片";
     [SerializeField] private string panelBottomSpriteName = "背景框下片";
     [SerializeField] private string statRowResourcePath = "Art/UI/UI/ShopAssistantUI/回合结束条目框";
-    [SerializeField] private string statRowAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/回合结束条目框.png";
+    [SerializeField] private string statRowAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/回合结束条目框.png";
     [SerializeField] private string statRowLeftSpriteName = "回合结束条目框左侧";
     [SerializeField] private string statRowRightSpriteName = "回合结束条目框右侧";
     [SerializeField] private string statPluginResourcePath = "Art/UI/UI/ShopAssistantUI/回合结束插件";
-    [SerializeField] private string statPluginAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/回合结束插件.png";
+    [SerializeField] private string statPluginAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/回合结束插件.png";
     [SerializeField] private string statLikeSpriteName = "点赞";
     [SerializeField] private string statBoxSpriteName = "货箱";
     [SerializeField] private string itemResourcePath = "UI/Item/base_goods";
     [SerializeField] private string itemAssetPath = "Assets/Resources/UI/Item/base_goods.png";
     [SerializeField] private string stampResourcePath = "Art/UI/UI/ShopAssistantUI/评级盖章";
-    [SerializeField] private string stampAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/评级盖章.png";
+    [SerializeField] private string stampAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/评级盖章.png";
     [SerializeField] private string stampBestSpriteName = "人上人";
     [SerializeField] private string stampGreatSpriteName = "NPC";
     [SerializeField] private string stampNormalSpriteName = "拉完了";
     [SerializeField] private string settlementButtonResourcePath = "Art/UI/UI/ShopAssistantUI/结算按钮";
-    [SerializeField] private string settlementButtonAssetPath = "Assets/Art/UI/UI/ShopAssistantUI/结算按钮.png";
+    [SerializeField] private string settlementButtonAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/结算按钮.png";
     [SerializeField] private string restartButtonSpriteName = "重新开始";
     [SerializeField] private string menuButtonSpriteName = "回到菜单";
 
@@ -1279,15 +1279,6 @@ public sealed class GameEndFailureUI : MonoBehaviour
 
         foreach (var existing in allCanvases)
         {
-            if (existing != null && existing.targetDisplay == targetDisplay)
-            {
-                EnsureCanvasInputComponents(existing);
-                return existing;
-            }
-        }
-
-        foreach (var existing in allCanvases)
-        {
             if (existing == null)
             {
                 continue;
@@ -1301,7 +1292,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
             }
         }
 
-        var canvasGo = new GameObject("GameEndFailureCanvas_Display6", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        var canvasGo = new GameObject("GameEndFailureCanvas_Display1", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         canvasGo.transform.SetParent(transform, false);
 
         var canvas = canvasGo.GetComponent<Canvas>();
@@ -1337,7 +1328,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
         }
 
         string lowered = objectName.ToLowerInvariant();
-        return lowered.Contains(displayCanvasNameHint.ToLowerInvariant()) || lowered.Contains("display 6");
+        return lowered.Contains(displayCanvasNameHint.ToLowerInvariant()) || lowered.Contains("display 1");
     }
 
     private void EnsureCanvasInputComponents(Canvas canvas)
@@ -1401,7 +1392,7 @@ public sealed class GameEndFailureUI : MonoBehaviour
             var assets = AssetDatabase.LoadAllAssetsAtPath(assetPath.Trim());
             foreach (var asset in assets)
             {
-                if (asset is Sprite sprite && NameEquals(sprite.name, spriteName))
+                if (asset is Sprite sprite && NameMatches(sprite.name, spriteName))
                 {
                     return sprite;
                 }
@@ -1422,18 +1413,26 @@ public sealed class GameEndFailureUI : MonoBehaviour
 
         foreach (var sprite in sprites)
         {
-            if (sprite != null && NameEquals(sprite.name, spriteName))
+            if (sprite != null && NameMatches(sprite.name, spriteName))
             {
                 return sprite;
             }
         }
 
-        return string.IsNullOrWhiteSpace(spriteName) ? sprites[0] : null;
+        return string.IsNullOrWhiteSpace(spriteName) || sprites.Length == 1 ? sprites[0] : null;
     }
 
-    private static bool NameEquals(string left, string right)
+    private static bool NameMatches(string actualName, string requestedName)
     {
-        return string.Equals(left, right == null ? string.Empty : right.Trim(), StringComparison.Ordinal);
+        if (string.IsNullOrWhiteSpace(actualName) || string.IsNullOrWhiteSpace(requestedName))
+        {
+            return false;
+        }
+
+        var trimmed = requestedName.Trim();
+        return string.Equals(actualName, trimmed, StringComparison.Ordinal)
+            || string.Equals(actualName, $"{trimmed}_0", StringComparison.Ordinal)
+            || actualName.StartsWith($"{trimmed}_", StringComparison.Ordinal);
     }
 
     private static ColorBlock SettlementButtonColors()
