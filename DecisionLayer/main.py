@@ -323,7 +323,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     _cleanup_debug_log_on_start("debug_log")
 
-    enable_monitor = str(os.getenv("ENABLE_MONITOR_UI", "1") or "1").strip().lower() not in {"0", "false", "off"}
+    # enable_monitor = str(os.getenv("ENABLE_MONITOR_UI", "1") or "1").strip().lower() not in {"0", "false", "off"}
+    enable_monitor = False
     if not enable_monitor:
         logging.info("ENABLE_MONITOR_UI=0, run in CLI mode.")
         asyncio.run(run())

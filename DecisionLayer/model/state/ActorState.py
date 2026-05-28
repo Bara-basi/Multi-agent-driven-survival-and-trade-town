@@ -216,8 +216,8 @@ class ActorState:
         intel_rows: List[Dict[str, Any]] = []
         for item_id in picked:
             cur_price = float(market.price(item_id))
-            true_next_price, base_acc = market.next_price_info(item_id)
-            declared_accuracy = round(float(base_acc), 2)
+            intel_outcome = market.intel_for_item(catalog, item_id)
+            declared_accuracy = round(float(intel_outcome.get("accuracy", 0.0) or 0.0), 2)
 
             # Lock precedence: lock invalidates intel immediately.
             if market.is_price_locked_for_next_day(item_id):
@@ -229,16 +229,13 @@ class ActorState:
                         "trend": "情报失效",
                         "accuracy": declared_accuracy,
                         "valid": False,
+                        "is_correct": False,
                         "invalid_reason": "该商品已被锁价，锁价优先于情报，情报自动失效。",
                     }
                 )
                 continue
 
-            is_correct = random.random() <= declared_accuracy
-            if is_correct:
-                shown_next = float(true_next_price)
-            else:
-                shown_next = float(market.simulate_next_price_for_item(catalog, item_id, current_price=cur_price))
+            shown_next = float(intel_outcome.get("intel_price", cur_price) or cur_price)
 
             intel_rows.append(
                 {
@@ -247,7 +244,9 @@ class ActorState:
                     "intel_price": round(shown_next, 2),
                     "trend": self._trend_text(cur_price, shown_next),
                     "accuracy": declared_accuracy,
-                    "valid": bool(is_correct),
+                    "valid": True,
+                    "is_correct": bool(intel_outcome.get("is_correct", False)),
+                    "true_next_price": round(float(intel_outcome.get("true_next_price", shown_next) or shown_next), 2),
                     "invalid_reason": "",
                 }
             )

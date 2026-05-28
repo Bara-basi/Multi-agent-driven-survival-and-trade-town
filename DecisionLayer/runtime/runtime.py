@@ -421,11 +421,16 @@ class AgentRuntime:
                 for intel in list(action.get("intel", []) or []):
                     if not isinstance(intel, dict):
                         continue
+                    if not bool(intel.get("valid", False)) or not bool(intel.get("is_correct", False)):
+                        continue
                     item_name = self._item_display_name(intel.get("item"))
-                    accuracy = self._format_accuracy(intel.get("accuracy"))
+                    try:
+                        price = round(float(intel.get("true_next_price", intel.get("intel_price"))), 2)
+                    except Exception:
+                        price = intel.get("intel_price")
                     rows.append({
                         "source": "广播",
-                        "message": f"{actor_name}获取了{item_name}的价格情报，准确率为{accuracy}",
+                        "message": f"{actor_name}获取到情报，明日{item_name}的价格为{price}",
                     })
 
         return rows

@@ -32,6 +32,8 @@ class MarketComponent:
     cumulative_purchased: Dict[ItemId, int] = field(default_factory=dict)
     # item_id -> (next_price, intel_accuracy)
     _next_price: Dict[ItemId, Tuple[float, float]] = field(default_factory=dict)
+    # item_id -> hidden intel result for the current generated next-price table.
+    _intel_outcomes: Dict[ItemId, Dict[str, Any]] = field(default_factory=dict)
     # Locked items apply to next-day price generation and are consumed after one update_day.
     _locked_next_day_items: Set[ItemId] = field(default_factory=set)
     _locked_today_items: Set[ItemId] = field(default_factory=set)
@@ -70,6 +72,36 @@ class MarketComponent:
     def next_price_info(self, item_id: ItemId) -> Tuple[float, float]:
         cur = self.price(item_id)
         return self._next_price.get(item_id, (cur, 1.0))
+
+    def intel_for_item(self, catalog: Catalog, item_id: ItemId) -> Dict[str, Any]:
+        """Return the fixed hidden intel outcome for this item/day.
+
+        Agents only see the displayed intel price and declared accuracy. The
+        hidden success flag is used by backend effects and player broadcasts.
+        """
+        item_id = self._normalize_item_id(str(item_id))
+        cached = self._intel_outcomes.get(item_id)
+        if cached is not None:
+            return dict(cached)
+
+        cur_price = float(self.price(item_id))
+        true_next_price, base_acc = self.next_price_info(item_id)
+        declared_accuracy = round(float(base_acc), 2)
+        is_correct = bool(rng.random() <= declared_accuracy)
+        if is_correct:
+            shown_next = float(true_next_price)
+        else:
+            shown_next = float(self.simulate_next_price_for_item(catalog, item_id, current_price=cur_price))
+
+        row = {
+            "current_price": round(cur_price, 2),
+            "intel_price": round(shown_next, 2),
+            "true_next_price": round(float(true_next_price), 2),
+            "accuracy": declared_accuracy,
+            "is_correct": is_correct,
+        }
+        self._intel_outcomes[item_id] = row
+        return dict(row)
 
     def add_stock(self, item_id: ItemId, qty: int) -> None:
         q = max(int(qty), 0)
@@ -124,6 +156,7 @@ class MarketComponent:
     def generate_price(self, catalog: Catalog) -> None:
         if not self._stock:
             self._next_price = {}
+            self._intel_outcomes = {}
             return
 
         next_price: Dict[ItemId, Tuple[float, float]] = {}
@@ -141,6 +174,7 @@ class MarketComponent:
             next_price[item_id] = (float(candidate), accuracy)
 
         self._next_price = next_price
+        self._intel_outcomes = {}
 
     def _short_item_id(self, item_id: str) -> str:
         if isinstance(item_id, str) and item_id.startswith("item:"):
@@ -178,7 +212,7 @@ class MarketComponent:
 
         for actor in actors or []:
             for row in list(getattr(actor, "decision_intel", []) or []):
-                if not bool(row.get("valid", False)):
+                if not bool(row.get("is_correct", False)):
                     continue
                 item_id = self._resolve_update_item_id(catalog, row.get("item"))
                 if not item_id or item_id in locked_items:
