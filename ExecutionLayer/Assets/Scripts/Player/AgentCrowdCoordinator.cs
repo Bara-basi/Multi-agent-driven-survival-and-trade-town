@@ -21,6 +21,22 @@ public static class AgentCrowdCoordinator
     private static readonly Dictionary<string, QueueState> queues = new();
     private static readonly Dictionary<AutoMove, string> queueByAgent = new();
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void ResetSceneState()
+    {
+        ClearAll();
+    }
+
+    public static void ClearAll()
+    {
+        agentCells.Clear();
+        cellOccupants.Clear();
+        reservationsByAgent.Clear();
+        reservedCells.Clear();
+        queues.Clear();
+        queueByAgent.Clear();
+    }
+
     public static void SyncCell(AutoMove agent, Vector3Int cell)
     {
         if (agent == null) return;

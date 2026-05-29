@@ -14,6 +14,8 @@ using UnityEditor;
 /// </summary>
 public sealed class GameEndVictoryUI : MonoBehaviour
 {
+    private const string CoverSceneName = "AITown_CoverScene";
+
     [Header("Display")]
     [SerializeField] [Range(0, 7)] private int targetDisplay = 0;
     [SerializeField] private string displayCanvasNameHint = "Display1";
@@ -142,6 +144,11 @@ public sealed class GameEndVictoryUI : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
     {
+        if (SceneManager.GetActiveScene().name == CoverSceneName)
+        {
+            return;
+        }
+
         if (FindObjectOfType<GameEndVictoryUI>() != null)
         {
             return;
@@ -551,6 +558,7 @@ public sealed class GameEndVictoryUI : MonoBehaviour
             parent,
             menuSprite,
             new Vector2(halfGap + halfButtonWidth, buttonY));
+        BindButtonClick(menuButtonRect, ReturnToMenu);
     }
 
     private RectTransform CreateSettlementButton(string name, Transform parent, Sprite sprite, Vector2 anchoredPosition)
@@ -599,6 +607,7 @@ public sealed class GameEndVictoryUI : MonoBehaviour
 
     private void RestartGame()
     {
+        Debug.Log("[GameEndVictoryUI] Restart game clicked.");
         Hide();
         WsAgentClient.RequestGameResetAfterSceneReload();
         var activeScene = SceneManager.GetActiveScene();
@@ -610,6 +619,12 @@ public sealed class GameEndVictoryUI : MonoBehaviour
         {
             SceneManager.LoadScene(activeScene.name);
         }
+    }
+
+    private void ReturnToMenu()
+    {
+        Debug.Log("[GameEndVictoryUI] Return to menu clicked.");
+        GameEndMenuReturnController.BeginReturnToMenu();
     }
 
     private IEnumerator PlayShowRoutine()

@@ -328,11 +328,12 @@ public sealed partial class ShopAssistantDisplayUI
         root.anchorMin = new Vector2(1f, 1f);
         root.anchorMax = new Vector2(1f, 1f);
         root.pivot = new Vector2(1f, 1f);
-        root.sizeDelta = new Vector2(340f, 316f);
+        root.sizeDelta = new Vector2(340f, 594f);
         root.anchoredPosition = new Vector2(-30f, -28f);
 
         BuildPlayerAvatarFrameRow(root);
         BuildPlayerInfoBackground(root);
+        BuildPlayerMonitorWindow(root);
     }
 
     private void BuildPlayerAvatarFrameRow(RectTransform parent)
@@ -415,6 +416,72 @@ public sealed partial class ShopAssistantDisplayUI
         RefreshPlayerInfoHeader();
         RefreshPlayerAttributeRows();
         RefreshPlayerMoneyRow();
+    }
+
+    private void BuildPlayerMonitorWindow(RectTransform parent)
+    {
+        var frameSprite = ResolveUiDecorationSprite(
+            playerMonitorFrameResourcePath,
+            playerMonitorFrameAssetPath,
+            playerMonitorFrameSpriteName);
+
+        var rootGo = new GameObject("PlayerMonitorWindow", typeof(RectTransform));
+        rootGo.transform.SetParent(parent, false);
+        var root = (RectTransform)rootGo.transform;
+        root.anchorMin = new Vector2(0f, 1f);
+        root.anchorMax = new Vector2(1f, 1f);
+        root.pivot = new Vector2(0.5f, 1f);
+        root.sizeDelta = new Vector2(0f, 258f);
+        root.anchoredPosition = new Vector2(0f, -313f);
+
+        var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+        viewportGo.transform.SetParent(root, false);
+        var viewport = (RectTransform)viewportGo.transform;
+        viewport.anchorMin = Vector2.zero;
+        viewport.anchorMax = Vector2.one;
+        viewport.offsetMin = new Vector2(6f, 6f);
+        viewport.offsetMax = new Vector2(-6f, -6f);
+
+        var viewportImage = viewportGo.GetComponent<Image>();
+        viewportImage.color = new Color(1f, 1f, 1f, 0.01f);
+        viewportImage.raycastTarget = false;
+        viewportGo.GetComponent<Mask>().showMaskGraphic = false;
+
+        var imageGo = new GameObject("CameraFeed", typeof(RectTransform), typeof(RawImage));
+        imageGo.transform.SetParent(viewport, false);
+        var imageRt = (RectTransform)imageGo.transform;
+        imageRt.anchorMin = Vector2.zero;
+        imageRt.anchorMax = Vector2.one;
+        imageRt.offsetMin = new Vector2(-2f, -2f);
+        imageRt.offsetMax = new Vector2(2f, 2f);
+
+        playerMonitorImage = imageGo.GetComponent<RawImage>();
+        playerMonitorImage.color = Color.white;
+        playerMonitorImage.raycastTarget = false;
+
+        var frameGo = new GameObject("Frame", typeof(RectTransform), typeof(Image));
+        frameGo.transform.SetParent(root, false);
+        var frame = (RectTransform)frameGo.transform;
+        frame.anchorMin = Vector2.zero;
+        frame.anchorMax = Vector2.one;
+        frame.offsetMin = Vector2.zero;
+        frame.offsetMax = Vector2.zero;
+
+        var frameImage = frameGo.GetComponent<Image>();
+        frameImage.sprite = frameSprite;
+        frameImage.type = Image.Type.Simple;
+        frameImage.preserveAspect = false;
+        frameImage.color = frameSprite != null ? Color.white : new Color(0.08f, 0.09f, 0.12f, 0.95f);
+        frameImage.raycastTarget = false;
+
+        playerMonitorFeed = gameObject.GetComponent<AgentMonitorCameraFeed>();
+        if (playerMonitorFeed == null)
+        {
+            playerMonitorFeed = gameObject.AddComponent<AgentMonitorCameraFeed>();
+        }
+
+        playerMonitorFeed.Bind(playerMonitorImage, playerMonitorTextureWidth, playerMonitorTextureHeight);
+        playerMonitorFeed.SetSelectedAgent(selectedPlayerFrameIndex);
     }
 
     private void BuildPlayerInfoHeader(RectTransform parent)
@@ -823,6 +890,10 @@ public sealed partial class ShopAssistantDisplayUI
         RefreshPlayerInfoHeader();
         RefreshPlayerAttributeRows();
         RefreshPlayerMoneyRow();
+        if (playerMonitorFeed != null)
+        {
+            playerMonitorFeed.SetSelectedAgent(selectedPlayerFrameIndex);
+        }
     }
 
     private void BuildOpenInventoryButton(Transform parent)

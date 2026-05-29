@@ -5,6 +5,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.TextCore.LowLevel;
 using UnityEngine.UI;
 #if UNITY_EDITOR
@@ -18,6 +19,7 @@ using UnityEditor;
 public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
 {
     private const int FirstRoundIndex = 1;
+    private const string CoverSceneName = "AITown_CoverScene";
 
     [Header("Display")]
     [SerializeField] [Range(0, 7)] private int targetDisplay = 0; // Display1 (0-based index)
@@ -157,6 +159,11 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
         "character3_57",
         "character4_58"
     };
+    [SerializeField] private string playerMonitorFrameResourcePath = "Art/UI/UI/ShopAssistantUI/监视窗口边框";
+    [SerializeField] private string playerMonitorFrameAssetPath = "Assets/Resources/Art/UI/UI/ShopAssistantUI/监视窗口边框.png";
+    [SerializeField] private string playerMonitorFrameSpriteName = "监视窗口边框";
+    [SerializeField] private int playerMonitorTextureWidth = 640;
+    [SerializeField] private int playerMonitorTextureHeight = 488;
 
     [Header("Round Transition")]
     [SerializeField] private string roundStartResourcePath = "Art/UI/UI/ShopAssistantUI/回合开始";
@@ -214,6 +221,8 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
     private readonly Dictionary<string, AgentModel> agentModelByName = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AgentModel> agentModelByCode = new(StringComparer.OrdinalIgnoreCase);
     private TextMeshProUGUI playerMoneyValueText;
+    private RawImage playerMonitorImage;
+    private AgentMonitorCameraFeed playerMonitorFeed;
     private int selectedPlayerFrameIndex;
     private TextMeshProUGUI roundText;
     private TextMeshProUGUI moneyText;
@@ -247,6 +256,11 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
     {
+        if (SceneManager.GetActiveScene().name == CoverSceneName)
+        {
+            return;
+        }
+
         if (FindObjectOfType<ShopAssistantDisplayUI>() != null)
         {
             return;
@@ -266,6 +280,14 @@ public sealed partial class ShopAssistantDisplayUI : MonoBehaviour
 
         var root = new GameObject("UI_ShopAssistant_Display1");
         return root.AddComponent<ShopAssistantDisplayUI>();
+    }
+
+    public static void ResetFrontendStateForNewGame()
+    {
+        pendingMarketInformationJson = null;
+        pendingAgentInformationJson = null;
+        pendingBroadcastMessagesJson.Clear();
+        WsAgentClient.ClearPendingGameResetRequest();
     }
 
     private void Awake()

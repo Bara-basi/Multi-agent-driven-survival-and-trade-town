@@ -75,6 +75,7 @@ public class WsAgentClient : MonoBehaviour
     private static string sharedServerUrl;
     private static WsAgentClient reconnectHost;
     private static Coroutine sharedReconnectCoroutine;
+    private static bool resetInProgress;
     private const string PendingResetPlayerPrefsKey = "AITown.PendingReset";
 
     struct AnimationRequest
@@ -85,6 +86,11 @@ public class WsAgentClient : MonoBehaviour
 
     void Awake()
     {
+        if (PlayerPrefs.GetInt(PendingResetPlayerPrefsKey, 0) == 1)
+        {
+            resetInProgress = true;
+        }
+
         locationGraph = new Dictionary<string, List<string>>();
         locations = new Dictionary<string, List<Vector3>>();
 
@@ -234,7 +240,14 @@ public class WsAgentClient : MonoBehaviour
 
     public static void RequestGameResetAfterSceneReload()
     {
+        resetInProgress = true;
         PlayerPrefs.SetInt(PendingResetPlayerPrefsKey, 1);
+        PlayerPrefs.Save();
+    }
+
+    public static void ClearPendingGameResetRequest()
+    {
+        PlayerPrefs.DeleteKey(PendingResetPlayerPrefsKey);
         PlayerPrefs.Save();
     }
 
@@ -382,6 +395,7 @@ public class WsAgentClient : MonoBehaviour
         }
 
         if (TryHandleSharedMessage(msg)) return;
+        if (TryRejectMessageDuringReset(msg)) return;
         if (TryHandleBroadcastMessage(msg)) return;
 
         if (!TryGetRouter(msg.agent_id, out var router))
@@ -423,12 +437,47 @@ public class WsAgentClient : MonoBehaviour
             case "hello_ack":
             case "reset_ack":
                 return true;
+            case "reset_complete":
+                resetInProgress = false;
+                return true;
             case "ping":
                 _ = SendJsonShared(new OutMsg { type = "pong" });
                 return true;
             default:
                 return false;
         }
+    }
+
+    static bool TryRejectMessageDuringReset(WSMsg msg)
+    {
+        if (!resetInProgress || msg == null)
+        {
+            return false;
+        }
+
+        if (msg.type == "information")
+        {
+            return true;
+        }
+
+        if (msg.type == "command" || msg.type == "animation" || msg.type == "info")
+        {
+            if (!string.IsNullOrWhiteSpace(msg.action_id))
+            {
+                _ = SendJsonShared(new OutMsg
+                {
+                    type = "complete",
+                    cmd = msg.cmd,
+                    agent_id = msg.agent_id,
+                    action_id = msg.action_id,
+                    status = "reset_ignored",
+                    error = "game reset in progress"
+                });
+            }
+            return true;
+        }
+
+        return false;
     }
 
     static bool TryHandleBroadcastMessage(WSMsg msg)
@@ -1058,6 +1107,9 @@ public class WsAgentClient : MonoBehaviour
 
     void OnDestroy()
     {
+        while (mainThreadQueue.TryDequeue(out _)) { }
+        while (animationQueue.TryDequeue(out _)) { }
+
         if (animationPumpCoroutine != null)
         {
             StopCoroutine(animationPumpCoroutine);

@@ -115,6 +115,7 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
 
     void OnDisable()
     {
+        ClearAllCommands();
         AgentCrowdCoordinator.Unregister(this);
     }
 
@@ -459,6 +460,35 @@ public class AutoMove : MonoBehaviour, IAutoNavigator,IPortalTraveller
             actionList.Enqueue(new ActionPair { cost = cost_time, cmd = cmd, target = Vector2.zero, targetKey = targetKey ?? "", facingDirection = 0, actionCallBack = onArrived });
         }
     }
+
+    public void ClearAllCommands()
+    {
+        ReleaseCurrentQueue();
+        actionList.Clear();
+        currentCallback = null;
+        curCmd = "";
+        currentTargetKey = "";
+        currentFacingDirection = 0;
+        currentCommandUsesQueue = false;
+        currentQueueKey = "";
+        lastQueueRank = -2;
+        waitingAtQueueSlot = false;
+        frozen = false;
+        isTeleporting = false;
+        suspendTimer = 0f;
+        res_time = 0f;
+        if (ani != null)
+        {
+            ani.SetInteger("move", 0);
+            ani.SetInteger("sleep", 0);
+        }
+        if (hud != null)
+        {
+            hud.StopWork();
+        }
+        CancelAuto();
+    }
+
     public void Suspend(float seconds)
     {
         //短暂屏蔽自动寻路

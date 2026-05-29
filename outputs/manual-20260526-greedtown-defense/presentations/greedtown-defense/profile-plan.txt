@@ -1,0 +1,4 @@
+task mode: create
+primary deck-profile: engineering-platform
+required proof objects: architecture map, workflow loop, action validation model, WebSocket RPC sequence, economic model, product proof UI slide
+asset rule: use supplied backgrounds, illustrations, and icons selectively; do not overcrowd panels
