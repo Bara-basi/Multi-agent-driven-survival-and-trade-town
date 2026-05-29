@@ -1,2 +1,0 @@
-Local source files used: README.md, docs/technical-implementation.md, docs/economy-system.md, DecisionLayer source files, ExecutionLayer Unity scripts.
-Local image assets used from PPT素材: background images, selected illustrations, and selected small decorative patterns supplied by user.
