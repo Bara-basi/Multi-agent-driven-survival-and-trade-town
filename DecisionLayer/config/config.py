@@ -18,9 +18,9 @@ INTEL_ACCURACY_MIN = 0.60
 INTEL_ACCURACY_MAX = 0.95
 
 # 模型配置
-ACT_MODEL_NAME = "Pro/moonshotai/Kimi-K2.6"
-PLAN_MODEL_NAME = "Pro/moonshotai/Kimi-K2.6"
-REFLECT_MODEL_NAME = "Pro/moonshotai/Kimi-K2.6"
+ACT_MODEL_NAME = "deepseek-ai/DeepSeek-V4-Flash"
+PLAN_MODEL_NAME = "deepseek-ai/DeepSeek-V4-Flash"
+REFLECT_MODEL_NAME = "deepseek-ai/DeepSeek-V4-Flash"
 
 # 角色属性配置
 HUNGER_DECAY_PER_DAY = 8

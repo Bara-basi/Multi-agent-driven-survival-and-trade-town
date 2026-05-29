@@ -248,7 +248,7 @@ async def run(on_update=None) -> None:
         while not all(client.is_connected(k) for k in actor2agent.values()):
             await asyncio.sleep(ACTION_LAYER_CONNECT_POLL_SECONDS)
 
-    async def _build_bound_runtime():
+    async def _build_bound_runtime(*, run_initial_player_phase: bool = True):
         reset_catalog = load_catalog()
         actor_states, location_states = build_state(reset_catalog)
         world = WorldState(
@@ -269,7 +269,15 @@ async def run(on_update=None) -> None:
             asyncio.to_thread(_build_runtime_components, world, actor_states, reset_catalog),
             name="runtime-init",
         )
-        await world.run_player_market_phase(advance_prices=False)
+        if run_initial_player_phase:
+            await world.run_player_market_phase(advance_prices=False)
+        else:
+            saved_client = world.client
+            world.client = None
+            try:
+                await world.run_player_market_phase(advance_prices=False)
+            finally:
+                world.client = saved_client
         agents, new_runtime = await runtime_init_task
         return world, agents, new_runtime
 
@@ -290,13 +298,22 @@ async def run(on_update=None) -> None:
                 return
             logger.info("Reset requested by Unity: %s", reset_msg)
             await _wait_action_clients_connected()
-            new_world, new_agents, new_runtime = await _build_bound_runtime()
+            new_world, new_agents, new_runtime = await _build_bound_runtime(run_initial_player_phase=False)
             runtime.reset(world=new_world, agents=new_agents, executor=new_runtime.executor)
+            new_world.pause_for_reset()
             state_ref["world"] = new_world
             state_ref["agents"] = new_agents
             if on_update:
                 for actor_id in new_agents.keys():
                     on_update(_build_monitor_payload(new_world, runtime, actor_id, result=None))
+            notify_reset_complete = getattr(client, "notify_reset_complete", None)
+            if callable(notify_reset_complete):
+                await notify_reset_complete(reset_msg)
+            end_reset = getattr(client, "end_reset", None)
+            if callable(end_reset):
+                end_reset()
+            await new_world.run_player_market_phase(advance_prices=False)
+            new_world.resume_after_reset()
             logger.info("Game state reset complete")
 
     reset_task = asyncio.create_task(_reset_loop(), name="unity-reset-listener")

@@ -83,8 +83,13 @@ class AgentRuntime:
         self.executor = executor
         self.logger = logger
         self._states: Dict[Any, RuntimeActorState] = {}
+        self._generation = 0
 
     def reset(self, *, world: WorldState, agents: Dict[ActorId, Agent], executor: ActionExecutor) -> None:
+        self._generation += 1
+        reset_world_flags = getattr(world, "reset_runtime_flags", None)
+        if callable(reset_world_flags):
+            reset_world_flags()
         self.world = world
         self.agents = agents
         self.executor = executor
@@ -456,7 +461,10 @@ class AgentRuntime:
             return True
         return (st.step - st.last_reflect_step) >= REFLECT_MIN_INTERVAL_STEPS
 
-    async def tick_actor(self, actor_id: Any) -> ActionResult:
+    async def tick_actor(self, actor_id: Any, generation: int | None = None) -> ActionResult:
+        if generation is not None and generation != self._generation:
+            return ActionResult(status=False, code="RESET", message="reset in progress")
+
         st = self._st(actor_id)
         agent = self.agents[actor_id]
         st.step += 1
@@ -473,6 +481,8 @@ class AgentRuntime:
         # 每回合开始时，先运行决策点代理，再进入 plan。
         if st.last_decision_day != self.world.day:
             llm_payload = await agent.make_desicion(obs)
+            if generation is not None and generation != self._generation:
+                return ActionResult(status=False, code="RESET", message="reset in progress")
 
             # 真正执行决策点效果（本步骤才会扣点/加钱/锁价/生成情报）。
             actor = self.world.actor(actor_id)
@@ -506,6 +516,8 @@ class AgentRuntime:
 
         if self._should_plan(st):
             await agent.plan(obs)
+            if generation is not None and generation != self._generation:
+                return ActionResult(status=False, code="RESET", message="reset in progress")
             st.plan_id += 1
             st.plan = agent.prompt_builder.plan_txt
             st.last_plan_step = st.step
@@ -521,6 +533,8 @@ class AgentRuntime:
         for _ in range(max_try):
             obs = self._obs(actor_id)
             raw_proposal: Any = await agent.act(obs)
+            if generation is not None and generation != self._generation:
+                return ActionResult(status=False, code="RESET", message="reset in progress")
             proposal = self._coerce_proposal(raw_proposal)
 
 
@@ -569,6 +583,8 @@ class AgentRuntime:
                 continue
 
             logger.info("proposal: %s", proposal)
+            if generation is not None and generation != self._generation:
+                return ActionResult(status=False, code="RESET", message="reset in progress")
             try:
                 res = await self.executor.execute(proposal, actor_id=actor_id)
             except Exception as e:
@@ -605,6 +621,8 @@ class AgentRuntime:
 
         if self._should_reflect(st):
             await agent.reflect(obs)
+            if generation is not None and generation != self._generation:
+                return ActionResult(status=False, code="RESET", message="reset in progress")
             st.last_reflect_step = st.step
 
         return res
@@ -621,7 +639,10 @@ class AgentRuntime:
             if not bool(getattr(actor_state, "running", True)):
                 await asyncio.sleep(interval_seconds)
                 continue
-            res = await self.tick_actor(actor_id)
+            generation = self._generation
+            res = await self.tick_actor(actor_id, generation=generation)
+            if generation != self._generation:
+                continue
             if on_tick:
                 on_tick(actor_id, res)
             await asyncio.sleep(interval_seconds)

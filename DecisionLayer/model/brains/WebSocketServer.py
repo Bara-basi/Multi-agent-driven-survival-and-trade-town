@@ -27,6 +27,7 @@ class WebSocketServer:
     pending: Dict[str, asyncio.Future] = field(default_factory=dict)
     stock_updates: asyncio.Queue = field(default_factory=asyncio.Queue)
     reset_requests: asyncio.Queue = field(default_factory=asyncio.Queue)
+    resetting: bool = False
     _market_info_cache: Dict[str, Any] | None = None
     _agent_info_cache: Dict[str, Any] | None = None
     _system_warning_active: set[str] = field(default_factory=set)
@@ -97,6 +98,7 @@ class WebSocketServer:
                     await self.stock_updates.put(msg)
                     logger.info("[%s] shop stock update received", msg.get("agent_id"))
                 elif msg_type == "reset":
+                    self.begin_reset()
                     await self.reset_requests.put(msg)
                     logger.info("[%s] reset requested", msg.get("agent_id"))
                     await ws.send(json.dumps({
@@ -169,6 +171,10 @@ class WebSocketServer:
         info: Dict[str, Any] | str | None = None,
     ):  
        
+        if self.resetting:
+            logger.info("Skip WebSocket send during reset: agent=%s type=%s cmd=%s", agent_id, type, cmd)
+            return None
+
         logger.debug(
             "Sending message to agent %s: type=%s cmd=%s target=%s value=%s cur_location=%s",
             agent_id,
@@ -212,6 +218,17 @@ class WebSocketServer:
             self.pending.pop(action_id, None)
             logger.warning("WebSocket message timeout: %s", agent_id)
             return None
+
+    def begin_reset(self) -> None:
+        self.resetting = True
+        for fut in list(self.pending.values()):
+            if not fut.done():
+                fut.set_result(None)
+        self.pending.clear()
+        self.clear_stock_updates()
+
+    def end_reset(self) -> None:
+        self.resetting = False
 
     def market_information(self) -> Dict[str, Any]:
         if self.world is not None:
@@ -769,6 +786,25 @@ class WebSocketServer:
 
     async def wait_reset_request(self) -> Dict[str, Any] | None:
         return await self.reset_requests.get()
+
+    async def notify_reset_complete(self, reset_msg: Dict[str, Any] | None = None) -> None:
+        payload = {
+            "type": "reset_complete",
+            "agent_id": (reset_msg or {}).get("agent_id"),
+            "server_time": int(time.time()),
+        }
+        targets = []
+        agent_id = str((reset_msg or {}).get("agent_id") or "").strip()
+        if agent_id and agent_id in self.connections:
+            targets.append(self.connections[agent_id])
+        else:
+            targets.extend(set(self.connections.values()))
+
+        for ws in targets:
+            try:
+                await ws.send(json.dumps(payload, ensure_ascii=False))
+            except Exception:
+                logger.exception("Failed to send reset_complete")
 
     def clear_reset_requests(self) -> None:
         while True:

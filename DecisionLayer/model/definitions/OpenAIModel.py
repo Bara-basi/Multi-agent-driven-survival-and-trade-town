@@ -96,10 +96,13 @@ class LLM:
         if restrict == "json":
             kwargs["response_format"] = {"type": "json_object"}
 
-        if thinking == "disabled":
+        thinking_mode = (thinking or "").lower()
+        if thinking_mode in {"disabled", "off"}:
             # OpenAI SDK sends extra_body fields as top-level request body keys.
-            # Kimi K2.6 supports this API-level switch for non-thinking mode.
-            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+            # SiliconFlow uses enable_thinking to switch GLM reasoning on/off.
+            kwargs["extra_body"] = {"enable_thinking": False}
+        elif thinking_mode == "low":
+            kwargs["extra_body"] = {"enable_thinking": True, "thinking_budget": 1024}
         else:
             kwargs["reasoning_effort"] = reasoning_effort or self.reasoning_effort
 

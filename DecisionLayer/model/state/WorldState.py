@@ -84,6 +84,25 @@ class WorldState:
         for actor in self.actors.values():
             actor.running = False
 
+    def reset_runtime_flags(self) -> None:
+        self.day = 1
+        self.events.clear()
+        self.shop_assistant_last_money = 1000.0
+        self.game_finished = False
+        self.game_result = None
+        for actor in self.actors.values():
+            actor.running = True
+
+    def pause_for_reset(self) -> None:
+        for actor in self.actors.values():
+            actor.running = False
+
+    def resume_after_reset(self) -> None:
+        self.game_finished = False
+        self.game_result = None
+        for actor in self.actors.values():
+            actor.running = True
+
     async def update_day(self) -> bool:
         """尝试进入下一回合，如果有任何 Actor 仍在执行，则不推进。"""
         if self.game_finished:

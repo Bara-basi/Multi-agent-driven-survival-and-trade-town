@@ -19,7 +19,7 @@ class Agent:
         plan = await self.model.agenerate(
             model=PLAN_MODEL_NAME,
             prompt=prompt,
-            thinking="disabled",
+            reasoning_effort="high",
         )
         self.prompt_builder.plan_txt = plan
 
@@ -29,7 +29,7 @@ class Agent:
             model=ACT_MODEL_NAME,
             prompt=prompt,
             restrict="json",
-            thinking="disabled",
+            thinking="off",
         )
         return self._normalize_action_output(action)
 
@@ -38,7 +38,7 @@ class Agent:
         reflect = await self.model.agenerate(
             model=REFLECT_MODEL_NAME,
             prompt=prompt,
-            thinking="disabled",
+            thinking="off",
         )
         self.prompt_builder.reflect_txt = reflect
 
@@ -48,7 +48,7 @@ class Agent:
             model=PLAN_MODEL_NAME,
             prompt=prompt,
             restrict="json",
-            thinking="disabled",
+            thinking="off",
         )
         if isinstance(decision, list):
             return [d for d in decision if isinstance(d, dict)]
